@@ -21,6 +21,7 @@ import ProductPage from './pages/ProductPage'
 import OrderConfirmationPage from './pages/OrderConfirmationPage'
 import AboutPage   from './pages/AboutPage'
 import ContactPage from './pages/ContactPage'
+import NotFoundPage from './pages/NotFoundPage'
 
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -78,6 +79,9 @@ export default function App() {
          <Route index         element={<Navigate to="/gestor/products" replace />} />
           <Route path="products" element={<AdminProducts />} />
         </Route>
+
+        {/* 404 — debe ir al final, captura cualquier ruta no definida */}
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   )

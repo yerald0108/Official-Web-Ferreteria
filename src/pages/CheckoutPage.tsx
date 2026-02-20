@@ -23,24 +23,24 @@ const paymentMethods = [
 ]
 
 const addressSchema = z.object({
-  delivery_address:      z.string().min(10, 'Escribe una dirección más detallada'),
-  delivery_phone:        z.string().min(8, 'Teléfono inválido').regex(/^\d+$/, 'Solo números'),
-  notes:                 z.string().optional(),
+  delivery_address: z.string().min(10, 'Escribe una dirección más detallada'),
+  delivery_phone:   z.string().min(8, 'Teléfono inválido').regex(/^\d+$/, 'Solo números'),
+  notes:            z.string().optional(),
 })
 
 type AddressForm = z.infer<typeof addressSchema>
 
 // ── Variantes animación ────────────────────────────────────────────
 const variants = {
-  enter: (dir: number) => ({ x: dir > 0 ? 300 : -300, opacity: 0 }),
+  enter:  (dir: number) => ({ x: dir > 0 ? 300 : -300, opacity: 0 }),
   center: { x: 0, opacity: 1 },
-  exit:  (dir: number) => ({ x: dir > 0 ? -300 : 300, opacity: 0 }),
+  exit:   (dir: number) => ({ x: dir > 0 ? -300 : 300, opacity: 0 }),
 }
 
 const STEPS = [
-  { label: 'Dirección',  icon: MapPin      },
-  { label: 'Entrega',    icon: Clock       },
-  { label: 'Pago',       icon: CreditCard  },
+  { label: 'Dirección', icon: MapPin     },
+  { label: 'Entrega',   icon: Clock      },
+  { label: 'Pago',      icon: CreditCard },
 ]
 
 export default function CheckoutPage() {
@@ -48,13 +48,13 @@ export default function CheckoutPage() {
   const { profile } = useAuth()
   const { items, getTotalPrice, clearCart } = useCartStore()
 
-  const [step,          setStep]          = useState(1)
-  const [direction,     setDirection]     = useState(1)
-  const [selectedSlot,  setSelectedSlot]  = useState('')
-  const [selectedPay,   setSelectedPay]   = useState('')
-  const [loading,       setLoading]       = useState(false)
-  const [error,         setError]         = useState('')
-  const [addressData,   setAddressData]   = useState<AddressForm | null>(null)
+  const [step,         setStep]         = useState(1)
+  const [direction,    setDirection]    = useState(1)
+  const [selectedSlot, setSelectedSlot] = useState('')
+  const [selectedPay,  setSelectedPay]  = useState('')
+  const [loading,      setLoading]      = useState(false)
+  const [error,        setError]        = useState('')
+  const [addressData,  setAddressData]  = useState<AddressForm | null>(null)
 
   const { register, handleSubmit, formState: { errors } } = useForm<AddressForm>({
     resolver: zodResolver(addressSchema),
@@ -96,7 +96,7 @@ export default function CheckoutPage() {
     goTo(3)
   }
 
-  // ── Paso 3: confirmar pago y crear pedido ──────────────────────
+  // ── Paso 3: confirmar pago y crear pedido con RPC atómica ──────
   const handleOrder = async () => {
     if (!selectedPay || !addressData || !profile) return
     setLoading(true)
@@ -104,33 +104,7 @@ export default function CheckoutPage() {
 
     const total = getTotalPrice()
 
-    // 1. Crear el pedido
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .insert({
-        user_id:              profile.id,
-        status:               'pending',
-        delivery_address:     addressData.delivery_address,
-        delivery_province:    profile.province,
-        delivery_municipality: profile.municipality,
-        delivery_phone:       addressData.delivery_phone,
-        delivery_slot:        selectedSlot,
-        payment_method:       selectedPay,
-        total,
-        notes: addressData.notes ?? null,
-      })
-      .select()
-      .single()
-
-    if (orderError || !order) {
-      setError('Error al crear el pedido. Intenta de nuevo.')
-      setLoading(false)
-      return
-    }
-
-    // 2. Insertar los items del pedido
     const orderItems = items.map(({ product, quantity }) => ({
-      order_id:      order.id,
       product_id:    product.id,
       product_name:  product.name,
       product_price: product.price,
@@ -138,27 +112,33 @@ export default function CheckoutPage() {
       subtotal:      product.price * quantity,
     }))
 
-    const { error: itemsError } = await supabase
-      .from('order_items')
-      .insert(orderItems)
+    const { data, error: rpcError } = await supabase.rpc('place_order', {
+      p_user_id:               profile.id,
+      p_delivery_address:      addressData.delivery_address,
+      p_delivery_province:     profile.province,
+      p_delivery_municipality: profile.municipality,
+      p_delivery_phone:        addressData.delivery_phone,
+      p_delivery_slot:         selectedSlot,
+      p_payment_method:        selectedPay,
+      p_total:                 total,
+      p_notes:                 addressData.notes ?? null,
+      p_items:                 orderItems,
+    })
 
-    if (itemsError) {
-      setError('Error al guardar los productos del pedido.')
-      setLoading(false)
+    setLoading(false)
+
+    if (rpcError || !data?.success) {
+      const msg = (data?.error as string) ?? rpcError?.message ?? 'Error al procesar el pedido'
+      if (msg.includes('Stock insuficiente')) {
+        setError(msg)
+      } else {
+        setError('Error al crear el pedido. Intenta de nuevo.')
+      }
       return
     }
 
-    // 3. Reducir stock de cada producto
-    for (const { product, quantity } of items) {
-      await supabase
-        .from('products')
-        .update({ stock: product.stock - quantity })
-        .eq('id', product.id)
-    }
-
     clearCart()
-    setLoading(false)
-    navigate(`/orders/${order.id}`)
+    navigate(`/orders/${data.order_id as string}`)
   }
 
   const total = getTotalPrice()
@@ -170,10 +150,10 @@ export default function CheckoutPage() {
       {/* Indicador de pasos */}
       <div className="flex items-center mb-8">
         {STEPS.map((s, i) => {
-          const num     = i + 1
-          const active  = step === num
-          const done    = step > num
-          const Icon    = s.icon
+          const num    = i + 1
+          const active = step === num
+          const done   = step > num
+          const Icon   = s.icon
           return (
             <div key={s.label} className="flex items-center flex-1 last:flex-none">
               <div className="flex flex-col items-center gap-1">
