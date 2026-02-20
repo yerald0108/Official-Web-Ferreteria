@@ -158,7 +158,7 @@ export default function CheckoutPage() {
 
     clearCart()
     setLoading(false)
-    navigate(`/orders?success=${order.id}`)
+    navigate(`/orders/${order.id}`)
   }
 
   const total = getTotalPrice()
