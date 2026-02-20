@@ -16,6 +16,7 @@ import GestorLayout from './components/admin/GestorLayout'
 import AdminProducts from './pages/admin/AdminProducts'
 import AdminUsers from './pages/admin/AdminUsers'
 import ProfilePage from './pages/ProfilePage'
+import { AuthCallbackPage } from './pages/AuthCallbackPage'
 
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="/login"        element={<LoginPage />} />
         <Route path="/register"     element={<RegisterPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
         {/* Rutas cliente */}
         <Route element={<MainLayout />}>
