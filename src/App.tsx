@@ -19,6 +19,8 @@ import ProfilePage from './pages/ProfilePage'
 import { AuthCallbackPage } from './pages/AuthCallbackPage'
 import ProductPage from './pages/ProductPage'
 import OrderConfirmationPage from './pages/OrderConfirmationPage'
+import AboutPage   from './pages/AboutPage'
+import ContactPage from './pages/ContactPage'
 
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -55,6 +57,8 @@ export default function App() {
           <Route path="/cart"    element={<CartPage />} />
           <Route path="/checkout" element={<PrivateRoute><CheckoutPage /></PrivateRoute>} />
           <Route path="/orders"  element={<PrivateRoute><OrdersPage /></PrivateRoute>} />
+          <Route path="/nosotros" element={<AboutPage />} />
+          <Route path="/contacto" element={<ContactPage />} />
           <Route path="/product/:id" element={<ProductPage />} />
           <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
           <Route path="/orders/:id" element={<PrivateRoute><OrderConfirmationPage /></PrivateRoute>} />

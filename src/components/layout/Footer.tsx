@@ -24,6 +24,8 @@ export default function Footer() {
   const navLinks = [
     { label: 'Inicio', to: '/' },
     { label: 'Catalogo', to: '/catalog' },
+    { label: 'Nosotros',    to: '/nosotros'  },
+    { label: 'Contacto',    to: '/contacto'  },
     { label: 'Mi carrito', to: '/cart' },
     { label: 'Mis pedidos', to: '/orders' },
     { label: 'Mi perfil', to: '/profile' },
