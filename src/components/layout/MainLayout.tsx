@@ -2,8 +2,10 @@ import { Outlet } from 'react-router-dom'
 import { Toaster } from 'sileo'
 import Navbar from './Navbar'
 import Footer from './Footer'
+import { useScrollTop } from '../../hooks/useScrollTop'
 
 export default function MainLayout() {
+  useScrollTop()
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col transition-colors duration-300">
       <Toaster position="top-right" />
