@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Order, Product, Category } from '../types'
 
+// src/hooks/useAdmin.ts — solo useAdminOrders cambia
 export function useAdminOrders() {
   const [orders, setOrders]   = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
@@ -9,7 +10,11 @@ export function useAdminOrders() {
   const fetchOrders = async () => {
     const { data } = await supabase
       .from('orders')
-      .select('*, order_items(*)')
+      .select(`
+        *,
+        order_items(*),
+        profile:profiles(full_name, phone)
+      `)
       .order('created_at', { ascending: false })
     setOrders(data ?? [])
     setLoading(false)

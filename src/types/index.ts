@@ -47,6 +47,10 @@ export interface Order {
   created_at: string
   updated_at: string
   order_items?: OrderItem[]
+  profile?: {
+    full_name: string
+    phone: string
+  }
 }
 
 export interface OrderItem {

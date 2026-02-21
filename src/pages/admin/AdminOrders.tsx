@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { sileo } from 'sileo'
 import { useAdminOrders } from '../../hooks/useAdmin'
 import type { Order } from '../../types'
+import { User } from 'lucide-react'
 
 const STATUSES = [
   { value: 'pending',    label: 'Pendiente',  color: 'bg-yellow-100 text-yellow-700' },
@@ -97,6 +98,12 @@ export default function AdminOrders() {
                     <p className="font-semibold text-gray-900 text-sm">
                       #{order.id.slice(0, 8).toUpperCase()}
                     </p>
+                    {/* Nombre del cliente ← nuevo */}
+                    {order.profile?.full_name && (
+                      <p className="text-xs font-medium text-orange-600 mt-0.5">
+                        👤 {order.profile.full_name}
+                      </p>
+                    )}
                     <p className="text-xs text-gray-400 mt-0.5">
                       {new Date(order.created_at).toLocaleDateString('es-CU', {
                         day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
@@ -132,13 +139,35 @@ export default function AdminOrders() {
 
               {/* Info entrega */}
               <div className="space-y-2 text-sm">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Entrega</p>
+
+              {/* Nombre del cliente */}
+              {selected.profile?.full_name && (
+                <div className="flex items-center justify-between bg-orange-50 border border-orange-100 rounded-xl px-3 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 bg-orange-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <User size={13} className="text-white" />
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {selected.profile.full_name}
+                    </p>
+                  </div>
+                  {selected.profile.phone && (
+                    <p className="text-xs text-gray-500">
+                      📞 {selected.profile.phone}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Detalles de entrega */}
                 <div className="bg-gray-50 rounded-xl p-3 space-y-1.5">
                   <p className="text-gray-500">📍 {selected.delivery_address}</p>
                   <p className="text-gray-500">🕐 {selected.delivery_slot}</p>
                   <p className="text-gray-500">📞 {selected.delivery_phone}</p>
                   <p className="text-gray-500">
-                    💳 {selected.payment_method === 'cash_on_delivery' ? 'Efectivo' :
-                        selected.payment_method === 'bank_transfer' ? 'Transferencia' : 'Otro'}
+                  💳 {selected.payment_method === 'cash_on_delivery' ? 'Efectivo' :
+                  selected.payment_method === 'bank_transfer' ? 'Transferencia' : 'Otro'}
                   </p>
                   {selected.notes && <p className="text-gray-500">📝 {selected.notes}</p>}
                 </div>
