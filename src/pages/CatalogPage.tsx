@@ -3,8 +3,10 @@ import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, SlidersHorizontal, X, Package } from 'lucide-react'
 import { useProducts, useCategories } from '../hooks/useProducts'
+import { useNetworkStatus } from '../hooks/useNetworkStatus'
 import ProductCard from '../components/products/ProductCard'
 import Pagination from '../components/ui/Pagination'
+import ErrorState from '../components/ui/ErrorState'
 
 const SORT_OPTIONS = [
   { value: 'created_at', label: 'Más recientes'    },
@@ -15,7 +17,7 @@ const SORT_OPTIONS = [
 
 type SortValue = typeof SORT_OPTIONS[number]['value']
 
-// Skeleton card
+// ── Skeleton card ─────────────────────────────────────────────────
 function ProductSkeleton() {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden animate-pulse">
@@ -34,8 +36,9 @@ function ProductSkeleton() {
 
 export default function CatalogPage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const { isOnline } = useNetworkStatus()
 
-  // Estado derivado de URL params (para que sea compartible/navegable)
+  // Estado derivado de URL params
   const [search,   setSearch]   = useState(searchParams.get('q')        ?? '')
   const [category, setCategory] = useState(searchParams.get('category') ?? 'todos')
   const [sortBy,   setSortBy]   = useState<SortValue>((searchParams.get('sort') as SortValue) ?? 'created_at')
@@ -49,7 +52,7 @@ export default function CatalogPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search)
-      setPage(1) // resetear página al buscar
+      setPage(1)
     }, 500)
     return () => clearTimeout(timer)
   }, [search])
@@ -64,7 +67,6 @@ export default function CatalogPage() {
     setSearchParams(params, { replace: true })
   }, [debouncedSearch, category, sortBy, page, setSearchParams])
 
-  // Reset página al cambiar filtros
   const handleCategory = useCallback((slug: string) => {
     setCategory(slug)
     setPage(1)
@@ -84,7 +86,7 @@ export default function CatalogPage() {
 
   const hasActiveFilters = search || category !== 'todos' || sortBy !== 'created_at'
 
-  const { products, loading, totalCount, totalPages } = useProducts({
+  const { products, loading, error, totalCount, totalPages } = useProducts({
     categorySlug: category,
     search: debouncedSearch,
     page,
@@ -99,7 +101,10 @@ export default function CatalogPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Catálogo</h1>
           <p className="text-gray-400 text-sm mt-1">
-            {loading ? 'Buscando...' : `${totalCount} producto${totalCount !== 1 ? 's' : ''} encontrado${totalCount !== 1 ? 's' : ''}`}
+            {loading
+              ? 'Buscando...'
+              : `${totalCount} producto${totalCount !== 1 ? 's' : ''} encontrado${totalCount !== 1 ? 's' : ''}`
+            }
           </p>
         </div>
 
@@ -118,7 +123,6 @@ export default function CatalogPage() {
 
       {/* Barra de búsqueda + ordenamiento */}
       <div className="flex gap-3">
-        {/* Search */}
         <div className="relative flex-1">
           <Search size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           <input
@@ -138,7 +142,6 @@ export default function CatalogPage() {
           )}
         </div>
 
-        {/* Ordenar — solo desktop */}
         <select
           value={sortBy}
           onChange={e => handleSort(e.target.value as SortValue)}
@@ -241,9 +244,25 @@ export default function CatalogPage() {
         )}
       </AnimatePresence>
 
-      {/* Grid de productos */}
+      {/* ── Grid de productos con manejo de estados ───────────── */}
       <AnimatePresence mode="wait">
-        {loading ? (
+
+        {/* 1. Sin conexión — tiene prioridad sobre todo */}
+        {!isOnline ? (
+          <motion.div
+            key="offline"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <ErrorState
+              type="network"
+              onRetry={() => window.location.reload()}
+            />
+          </motion.div>
+
+        /* 2. Skeleton de carga */
+        ) : loading ? (
           <motion.div
             key="skeleton"
             initial={{ opacity: 0 }}
@@ -253,6 +272,22 @@ export default function CatalogPage() {
           >
             {Array.from({ length: 12 }).map((_, i) => <ProductSkeleton key={i} />)}
           </motion.div>
+
+        /* 3. Error del servidor */
+        ) : error ? (
+          <motion.div
+            key="error"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <ErrorState
+              type="server"
+              onRetry={() => window.location.reload()}
+            />
+          </motion.div>
+
+        /* 4. Sin resultados con los filtros actuales */
         ) : products.length === 0 ? (
           <motion.div
             key="empty"
@@ -274,6 +309,8 @@ export default function CatalogPage() {
               Ver todos los productos
             </button>
           </motion.div>
+
+        /* 5. Grid de productos */
         ) : (
           <motion.div
             key={`products-${page}-${category}-${debouncedSearch}-${sortBy}`}
@@ -297,7 +334,7 @@ export default function CatalogPage() {
       </AnimatePresence>
 
       {/* Paginación */}
-      {!loading && totalPages > 1 && (
+      {!loading && !error && isOnline && totalPages > 1 && (
         <div className="pt-4">
           <Pagination
             currentPage={page}

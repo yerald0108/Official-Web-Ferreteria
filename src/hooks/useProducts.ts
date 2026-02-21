@@ -130,9 +130,14 @@ export function useProduct(id: string) {
 // Hook para productos relacionados
 export function useRelatedProducts(categoryId: string | null, excludeId: string) {
   const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading]   = useState(true)
 
   useEffect(() => {
-    if (!categoryId) return
+    if (!categoryId) {
+      setLoading(false)
+      return
+    }
+    setLoading(true)
     supabase
       .from('products')
       .select('*, category:categories(*)')
@@ -140,10 +145,13 @@ export function useRelatedProducts(categoryId: string | null, excludeId: string)
       .eq('is_active', true)
       .neq('id', excludeId)
       .limit(4)
-      .then(({ data }) => setProducts(data ?? []))
+      .then(({ data }) => {
+        setProducts(data ?? [])
+        setLoading(false)
+      })
   }, [categoryId, excludeId])
 
-  return { products }
+  return { products, loading }
 }
 
 export function useCategories() {

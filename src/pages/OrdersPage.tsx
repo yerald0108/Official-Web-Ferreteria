@@ -1,4 +1,3 @@
-// src/pages/OrdersPage.tsx — reemplazo completo con timeline visual premium
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -9,6 +8,8 @@ import {
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { useNetworkStatus } from '../hooks/useNetworkStatus'
+import ErrorState from '../components/ui/ErrorState'
 import type { Order } from '../types'
 
 // ── Configuración de estados ───────────────────────────────────────
@@ -66,7 +67,6 @@ const STEPS: StepConfig[] = [
   },
 ]
 
-
 const PAYMENT_LABELS: Record<string, string> = {
   cash_on_delivery: '💵 Efectivo',
   bank_transfer:    '🏦 Transferencia',
@@ -93,7 +93,6 @@ function OrderTimeline({ order }: { order: Order }) {
 
   return (
     <div className="relative pt-1">
-      {/* Track de fondo */}
       <div className="flex items-center justify-between relative">
         {/* Línea base */}
         <div className="absolute top-4 left-4 right-4 h-0.5 bg-gray-100 dark:bg-gray-800" />
@@ -116,7 +115,6 @@ function OrderTimeline({ order }: { order: Order }) {
 
           return (
             <div key={step.key} className="flex flex-col items-center gap-2 z-10" style={{ flex: '0 0 auto' }}>
-              {/* Dot */}
               <div className="relative">
                 <motion.div
                   initial={{ scale: 0.5, opacity: 0 }}
@@ -131,7 +129,6 @@ function OrderTimeline({ order }: { order: Order }) {
                   <Icon size={14} className={isDone ? 'text-white' : 'text-gray-300'} />
                 </motion.div>
 
-                {/* Pulse en el step actual */}
                 {isCurrent && (
                   <>
                     <motion.div
@@ -148,13 +145,13 @@ function OrderTimeline({ order }: { order: Order }) {
                 )}
               </div>
 
-              {/* Label */}
-              <p className={`text-center leading-tight transition-colors ${
-                isDone
-                  ? `text-[10px] font-bold ${step.color}`
-                  : 'text-[10px] font-medium text-gray-300 dark:text-gray-600'
-              }`}
-              style={{ maxWidth: '56px', wordBreak: 'break-word' }}
+              <p
+                className={`text-center leading-tight transition-colors ${
+                  isDone
+                    ? `text-[10px] font-bold ${step.color}`
+                    : 'text-[10px] font-medium text-gray-300 dark:text-gray-600'
+                }`}
+                style={{ maxWidth: '56px', wordBreak: 'break-word' }}
               >
                 {step.shortLabel}
               </p>
@@ -203,7 +200,6 @@ function OrderCard({ order, index }: { order: Order; index: number }) {
         onClick={() => setExpanded(v => !v)}
         className="w-full text-left p-5 flex items-start gap-4"
       >
-        {/* Icono de estado */}
         <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${
           isCancelled ? 'bg-red-50 dark:bg-red-900/20' : 'bg-orange-50 dark:bg-orange-900/20'
         }`}>
@@ -213,7 +209,6 @@ function OrderCard({ order, index }: { order: Order; index: number }) {
           }
         </div>
 
-        {/* Info principal */}
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 flex-wrap">
             <div>
@@ -236,13 +231,11 @@ function OrderCard({ order, index }: { order: Order; index: number }) {
             </div>
           </div>
 
-          {/* Resumen de productos */}
           <p className="text-xs text-gray-400 mt-2 truncate">
             {order.order_items?.map(i => `${i.product_name} ×${i.quantity}`).join(' · ')}
           </p>
         </div>
 
-        {/* Chevron */}
         <motion.div
           animate={{ rotate: expanded ? 180 : 0 }}
           transition={{ duration: 0.2 }}
@@ -348,7 +341,7 @@ function OrderSkeleton() {
         <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded w-20" />
       </div>
       <div className="flex items-center justify-between pt-2">
-        {[1,2,3,4].map(i => (
+        {[1, 2, 3, 4].map(i => (
           <div key={i} className="flex flex-col items-center gap-2">
             <div className="w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-full" />
             <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded w-12" />
@@ -361,31 +354,47 @@ function OrderSkeleton() {
 
 // ── Página principal ──────────────────────────────────────────────
 export default function OrdersPage() {
-  const { profile }           = useAuth()
-  const [orders, setOrders]   = useState<Order[]>([])
-  const [loading, setLoading] = useState(true)
-  const [filter, setFilter]   = useState<string>('all')
+  const { profile }             = useAuth()
+  const { isOnline }            = useNetworkStatus()
+  const [orders, setOrders]     = useState<Order[]>([])
+  const [loading, setLoading]   = useState(true)
+  const [fetchError, setFetchError] = useState(false)
+  const [filter, setFilter]     = useState<string>('all')
 
-  useEffect(() => {
+  const fetchOrders = () => {
     if (!profile) return
+
+    // Reinicia el error antes de cada intento
+    setFetchError(false)
+    setLoading(true)
+
     supabase
       .from('orders')
       .select('*, order_items(*)')
       .eq('user_id', profile.id)
       .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        setOrders((data ?? []) as Order[])
+      .then(({ data, error }) => {
+        if (error) {
+          setFetchError(true)
+        } else {
+          setOrders((data ?? []) as Order[])
+        }
         setLoading(false)
       })
+  }
+
+  useEffect(() => {
+    fetchOrders()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile])
 
   const filters = [
-    { key: 'all',        label: 'Todos'      },
-    { key: 'pending',    label: 'Pendientes' },
-    { key: 'confirmed',  label: 'Confirmados'},
-    { key: 'on_the_way', label: 'En camino'  },
-    { key: 'delivered',  label: 'Entregados' },
-    { key: 'cancelled',  label: 'Cancelados' },
+    { key: 'all',        label: 'Todos'       },
+    { key: 'pending',    label: 'Pendientes'  },
+    { key: 'confirmed',  label: 'Confirmados' },
+    { key: 'on_the_way', label: 'En camino'   },
+    { key: 'delivered',  label: 'Entregados'  },
+    { key: 'cancelled',  label: 'Cancelados'  },
   ]
 
   const filtered = filter === 'all'
@@ -393,7 +402,7 @@ export default function OrdersPage() {
     : orders.filter(o => o.status === filter)
 
   const activeCount = orders.filter(o =>
-    ['pending','confirmed','on_the_way'].includes(o.status)
+    ['pending', 'confirmed', 'on_the_way'].includes(o.status)
   ).length
 
   return (
@@ -458,12 +467,23 @@ export default function OrdersPage() {
         })}
       </div>
 
-      {/* ── Lista de pedidos ──────────────────────────────────── */}
+      {/* ── Lista de pedidos con manejo de estados ────────────── */}
       {loading ? (
+        // 1. Skeleton mientras carga
         <div className="space-y-4">
           {[1, 2, 3].map(i => <OrderSkeleton key={i} />)}
         </div>
+
+      ) : !isOnline || fetchError ? (
+        // 2. Sin conexión o error del servidor
+        <ErrorState
+          type={!isOnline ? 'network' : 'server'}
+          // El botón de reintento vuelve a ejecutar la consulta
+          onRetry={fetchOrders}
+        />
+
       ) : filtered.length === 0 ? (
+        // 3. Sin pedidos (estado vacío)
         <motion.div
           initial={{ opacity: 0, scale: 0.97 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -489,7 +509,9 @@ export default function OrdersPage() {
             </Link>
           )}
         </motion.div>
+
       ) : (
+        // 4. Lista de pedidos
         <div className="space-y-4">
           {filtered.map((order, i) => (
             <OrderCard key={order.id} order={order} index={i} />

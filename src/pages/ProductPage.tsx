@@ -7,15 +7,48 @@ import {
 } from 'lucide-react'
 import { useProduct, useRelatedProducts } from '../hooks/useProducts'
 import { useCartStore } from '../store/cartStore'
+import { useNetworkStatus } from '../hooks/useNetworkStatus'
 import ProductCard from '../components/products/ProductCard'
+import ErrorState from '../components/ui/ErrorState'
 import { sileo } from 'sileo'
+
+// ── Skeleton para productos relacionados ──────────────────────────
+function RelatedSkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div
+          key={i}
+          className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden animate-pulse"
+        >
+          <div className="h-48 bg-gray-100 dark:bg-gray-800" />
+          <div className="p-4 space-y-3">
+            <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded-lg w-3/4" />
+            <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded-lg w-1/2" />
+            <div className="flex justify-between items-center mt-4">
+              <div className="h-6 bg-gray-100 dark:bg-gray-800 rounded-lg w-16" />
+              <div className="h-9 bg-gray-100 dark:bg-gray-800 rounded-xl w-24" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export default function ProductPage() {
   const { id }       = useParams<{ id: string }>()
   const navigate     = useNavigate()
   const { product, loading, error } = useProduct(id ?? '')
-  const { products: related }       = useRelatedProducts(product?.category_id ?? null, id ?? '')
+
+  // ← loading ahora viene del hook modificado
+  const { products: related, loading: loadingRelated } = useRelatedProducts(
+    product?.category_id ?? null,
+    id ?? ''
+  )
+
   const { addItem, getTotalItems }  = useCartStore()
+  const { isOnline }                = useNetworkStatus()
   const [quantity, setQuantity]     = useState(1)
   const [added, setAdded]           = useState(false)
 
@@ -50,11 +83,10 @@ export default function ProductPage() {
     }
   }
 
-  // Loading skeleton
+  // ── Loading skeleton principal ────────────────────────────────
   if (loading) {
     return (
       <div className="max-w-5xl mx-auto">
-        {/* Breadcrumb skeleton */}
         <div className="flex items-center gap-2 mb-8">
           <div className="h-4 w-16 bg-gray-100 rounded animate-pulse" />
           <div className="h-4 w-4 bg-gray-100 rounded animate-pulse" />
@@ -74,28 +106,35 @@ export default function ProductPage() {
     )
   }
 
-  // Error / no encontrado
+  // ── Error / no encontrado ─────────────────────────────────────
   if (error || !product) {
     return (
-      <div className="max-w-md mx-auto text-center py-24 space-y-4">
-        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
-          <Package size={36} className="text-gray-300" strokeWidth={1.5} />
+      <div className="max-w-lg mx-auto py-16">
+        <ErrorState
+          type={!isOnline ? 'network' : !product && !error ? 'generic' : 'server'}
+          title={!product && !error ? 'Producto no encontrado' : undefined}
+          description={
+            !product && !error
+              ? 'Este producto no existe o fue eliminado.'
+              : undefined
+          }
+          onRetry={error ? () => window.location.reload() : undefined}
+        />
+        <div className="mt-6 flex justify-center">
+          <Link
+            to="/catalog"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-orange-500 hover:text-orange-600 transition-colors"
+          >
+            <ArrowLeft size={16} /> Volver al catálogo
+          </Link>
         </div>
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">Producto no encontrado</h2>
-        <p className="text-gray-400 text-sm">Este producto no existe o fue eliminado.</p>
-        <Link
-          to="/catalog"
-          className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-3 rounded-xl transition-colors text-sm mt-2"
-        >
-          <ArrowLeft size={16} /> Volver al catálogo
-        </Link>
       </div>
     )
   }
 
-  const outOfStock   = product.stock === 0
-  const lowStock     = product.stock > 0 && product.stock <= 5
-  const maxQty       = Math.min(product.stock, 99)
+  const outOfStock = product.stock === 0
+  const lowStock   = product.stock > 0 && product.stock <= 5
+  const maxQty     = Math.min(product.stock, 99)
 
   return (
     <div className="max-w-5xl mx-auto space-y-12">
@@ -144,7 +183,6 @@ export default function ProductPage() {
               </div>
             )}
 
-            {/* Badge agotado */}
             {outOfStock && (
               <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-3xl">
                 <span className="bg-white text-gray-700 font-bold px-4 py-2 rounded-full text-sm">
@@ -154,7 +192,6 @@ export default function ProductPage() {
             )}
           </div>
 
-          {/* Badge categoría */}
           {product.category && (
             <div className="absolute top-4 left-4">
               <Link
@@ -167,7 +204,6 @@ export default function ProductPage() {
             </div>
           )}
 
-          {/* Botón compartir */}
           <button
             onClick={handleShare}
             className="absolute top-4 right-4 w-9 h-9 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-full flex items-center justify-center text-gray-500 hover:text-orange-500 hover:border-orange-300 transition-all shadow-sm"
@@ -183,7 +219,6 @@ export default function ProductPage() {
           transition={{ duration: 0.4 }}
           className="flex flex-col gap-6"
         >
-          {/* Nombre y precio */}
           <div>
             <h1 className="text-2xl md:text-3xl font-black text-gray-900 dark:text-white leading-tight">
               {product.name}
@@ -196,7 +231,6 @@ export default function ProductPage() {
             </div>
           </div>
 
-          {/* Estado de stock */}
           <div className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold w-fit ${
             outOfStock
               ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
@@ -213,7 +247,6 @@ export default function ProductPage() {
             )}
           </div>
 
-          {/* Descripción */}
           {product.description && (
             <div>
               <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">
@@ -225,7 +258,6 @@ export default function ProductPage() {
             </div>
           )}
 
-          {/* Selector de cantidad */}
           {!outOfStock && (
             <div>
               <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
@@ -252,7 +284,8 @@ export default function ProductPage() {
                   </button>
                 </div>
                 <p className="text-sm text-gray-400">
-                  Subtotal: <span className="font-bold text-gray-900 dark:text-white">
+                  Subtotal:{' '}
+                  <span className="font-bold text-gray-900 dark:text-white">
                     ${(product.price * quantity).toFixed(2)}
                   </span>
                 </p>
@@ -260,7 +293,6 @@ export default function ProductPage() {
             </div>
           )}
 
-          {/* CTA */}
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <motion.button
               onClick={handleAdd}
@@ -308,7 +340,6 @@ export default function ProductPage() {
             </Link>
           </div>
 
-          {/* Garantías rápidas */}
           <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100 dark:border-gray-800">
             {[
               { icon: '🚚', text: 'Envío nacional a domicilio'    },
@@ -325,8 +356,9 @@ export default function ProductPage() {
         </motion.div>
       </div>
 
-      {/* Productos relacionados */}
-      {related.length > 0 && (
+      {/* ── Productos relacionados ──────────────────────────────── */}
+      {/* Se muestra mientras carga (skeleton) O cuando hay resultados */}
+      {(loadingRelated || related.length > 0) && (
         <section>
           <div className="flex items-end justify-between mb-6">
             <div>
@@ -337,25 +369,34 @@ export default function ProductPage() {
                 Productos relacionados
               </h2>
             </div>
-            <Link
-              to={`/catalog?category=${product.category?.slug}`}
-              className="text-sm font-semibold text-orange-500 hover:text-orange-600 flex items-center gap-1 transition-colors"
-            >
-              Ver más <ChevronRight size={16} />
-            </Link>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {related.map((p, i) => (
-              <motion.div
-                key={p.id}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.08 }}
+            {/* El link solo aparece cuando los datos ya cargaron */}
+            {!loadingRelated && (
+              <Link
+                to={`/catalog?category=${product.category?.slug}`}
+                className="text-sm font-semibold text-orange-500 hover:text-orange-600 flex items-center gap-1 transition-colors"
               >
-                <ProductCard product={p} />
-              </motion.div>
-            ))}
+                Ver más <ChevronRight size={16} />
+              </Link>
+            )}
           </div>
+
+          {/* Skeleton mientras carga, grid real cuando termina */}
+          {loadingRelated ? (
+            <RelatedSkeleton />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {related.map((p, i) => (
+                <motion.div
+                  key={p.id}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.08 }}
+                >
+                  <ProductCard product={p} />
+                </motion.div>
+              ))}
+            </div>
+          )}
         </section>
       )}
     </div>

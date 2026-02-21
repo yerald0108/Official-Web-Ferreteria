@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -8,6 +8,8 @@ import {
   TrendingUp, AlertCircle
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { useNetworkStatus } from '../../hooks/useNetworkStatus'
+import ErrorState from '../../components/ui/ErrorState'
 import type { Order, Product } from '../../types'
 
 // ── Paleta ────────────────────────────────────────────────────────
@@ -78,11 +80,15 @@ function groupByDay(orders: Order[]): { day: string; pedidos: number; ingresos: 
 }
 
 // ── Animación de número ───────────────────────────────────────────
-function AnimatedNumber({ value, prefix = '', decimals = 0 }: { value: number; prefix?: string; decimals?: number }) {
+function AnimatedNumber({ value, prefix = '', decimals = 0 }: {
+  value: number
+  prefix?: string
+  decimals?: number
+}) {
   const [display, setDisplay] = useState(0)
 
   useEffect(() => {
-    let start = 0
+    let start      = 0
     const end      = value
     const duration = 900
     const step     = 16
@@ -104,7 +110,7 @@ function AnimatedNumber({ value, prefix = '', decimals = 0 }: { value: number; p
   )
 }
 
-// ── Componente principal ──────────────────────────────────────────
+// ── Tipos ─────────────────────────────────────────────────────────
 interface Stats {
   totalOrders:      number
   pendingOrders:    number
@@ -114,18 +120,32 @@ interface Stats {
   totalRevenue:     number
 }
 
+// ── Componente principal ──────────────────────────────────────────
 export default function AdminDashboard() {
-  const [stats,    setStats]    = useState<Stats | null>(null)
-  const [orders,   setOrders]   = useState<Order[]>([])
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading,  setLoading]  = useState(true)
+  const [stats,      setStats]      = useState<Stats | null>(null)
+  const [orders,     setOrders]     = useState<Order[]>([])
+  const [products,   setProducts]   = useState<Product[]>([])
+  const [loading,    setLoading]    = useState(true)
+  const [fetchError, setFetchError] = useState(false)
+  const { isOnline }                = useNetworkStatus()
 
-  useEffect(() => {
-    async function fetchAll() {
+  const fetchAll = useCallback(async () => {
+    // Reinicia el estado de error antes de cada intento
+    setFetchError(false)
+    setLoading(true)
+
+    try {
       const [ordersRes, productsRes] = await Promise.all([
         supabase.from('orders').select('*'),
         supabase.from('products').select('*, category:categories(name)'),
       ])
+
+      // Si cualquiera de las dos consultas falla, mostramos el error
+      if (ordersRes.error || productsRes.error) {
+        setFetchError(true)
+        setLoading(false)
+        return
+      }
 
       const allOrders   = (ordersRes.data   ?? []) as Order[]
       const allProducts = (productsRes.data ?? []) as Product[]
@@ -142,13 +162,19 @@ export default function AdminDashboard() {
           .filter(o => o.status === 'delivered')
           .reduce((s, o) => s + o.total, 0),
       })
+    } catch {
+      // Error de red inesperado (timeout, fetch fallido, etc.)
+      setFetchError(true)
+    } finally {
       setLoading(false)
     }
-    fetchAll()
   }, [])
 
+  useEffect(() => { fetchAll() }, [fetchAll])
+
   // ── Datos para gráficas ────────────────────────────────────────
-  const dailyData = groupByDay(orders)
+  const dailyData    = groupByDay(orders)
+  const PIE_COLORS   = [ORANGE, BLUE, GREEN, PURPLE, AMBER, RED]
 
   const statusData = Object.entries(STATUS_LABELS).map(([value, label]) => ({
     name:  label,
@@ -176,16 +202,15 @@ export default function AdminDashboard() {
   })()
 
   const STAT_CARDS = stats ? [
-    { label: 'Total pedidos',     value: stats.totalOrders,     icon: ShoppingBag, color: 'from-blue-500 to-blue-600',     prefix: '',  decimals: 0 },
-    { label: 'Pendientes',        value: stats.pendingOrders,   icon: Clock,       color: 'from-amber-400 to-orange-500',  prefix: '',  decimals: 0 },
-    { label: 'Entregados',        value: stats.deliveredOrders, icon: CheckCircle, color: 'from-green-400 to-emerald-600', prefix: '',  decimals: 0 },
-    { label: 'Productos activos', value: stats.totalProducts,   icon: Package,     color: 'from-purple-500 to-violet-600', prefix: '',  decimals: 0 },
-    { label: 'Stock bajo (≤5)',   value: stats.lowStockProducts,icon: AlertCircle, color: 'from-red-400 to-rose-600',      prefix: '',  decimals: 0 },
-    { label: 'Ingresos totales',  value: stats.totalRevenue,    icon: TrendingUp,  color: 'from-orange-400 to-orange-600', prefix: '$', decimals: 2 },
+    { label: 'Total pedidos',     value: stats.totalOrders,      icon: ShoppingBag, color: 'from-blue-500 to-blue-600',     prefix: '',  decimals: 0 },
+    { label: 'Pendientes',        value: stats.pendingOrders,    icon: Clock,       color: 'from-amber-400 to-orange-500',  prefix: '',  decimals: 0 },
+    { label: 'Entregados',        value: stats.deliveredOrders,  icon: CheckCircle, color: 'from-green-400 to-emerald-600', prefix: '',  decimals: 0 },
+    { label: 'Productos activos', value: stats.totalProducts,    icon: Package,     color: 'from-purple-500 to-violet-600', prefix: '',  decimals: 0 },
+    { label: 'Stock bajo (≤5)',   value: stats.lowStockProducts, icon: AlertCircle, color: 'from-red-400 to-rose-600',      prefix: '',  decimals: 0 },
+    { label: 'Ingresos totales',  value: stats.totalRevenue,     icon: TrendingUp,  color: 'from-orange-400 to-orange-600', prefix: '$', decimals: 2 },
   ] : []
 
-  const PIE_COLORS = [ORANGE, BLUE, GREEN, PURPLE, AMBER, RED]
-
+  // ── Estado 1: cargando ─────────────────────────────────────────
   if (loading) {
     return (
       <div className="space-y-6">
@@ -203,6 +228,27 @@ export default function AdminDashboard() {
     )
   }
 
+  // ── Estado 2: sin conexión o error del servidor ────────────────
+  if (!isOnline || fetchError) {
+    return (
+      <div className="space-y-4">
+        {/* Mantenemos el header para que el admin sepa dónde está */}
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-400 text-sm mt-1">Visión general de tu ferretería</p>
+        </div>
+        <div className="py-6">
+          <ErrorState
+            type={!isOnline ? 'network' : 'server'}
+            // El botón de reintento llama directamente a fetchAll
+            onRetry={fetchAll}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  // ── Estado 3: datos cargados correctamente ─────────────────────
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -278,8 +324,12 @@ export default function AdminDashboard() {
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false}
-              tickFormatter={v => `$${v}`} />
+            <YAxis
+              tick={{ fontSize: 11, fill: '#94a3b8' }}
+              axisLine={false}
+              tickLine={false}
+              tickFormatter={v => `$${v}`}
+            />
             <Tooltip content={<CustomTooltip />} />
             <Area
               type="monotone"
@@ -298,7 +348,7 @@ export default function AdminDashboard() {
         </ResponsiveContainer>
       </div>
 
-      {/* Fila: Pie + Bar */}
+      {/* Fila: Pie de estados + Pie de categorías */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         {/* Gráfica 3: Estado de pedidos (Pie) */}
@@ -404,8 +454,21 @@ export default function AdminDashboard() {
               margin={{ top: 0, right: 20, left: 10, bottom: 0 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-              <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+              <XAxis
+                type="number"
+                tick={{ fontSize: 11, fill: '#94a3b8' }}
+                axisLine={false}
+                tickLine={false}
+                allowDecimals={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="name"
+                width={130}
+                tick={{ fontSize: 11, fill: '#64748b' }}
+                axisLine={false}
+                tickLine={false}
+              />
               <Tooltip content={<CustomTooltip />} />
               <Bar
                 dataKey="stock"
