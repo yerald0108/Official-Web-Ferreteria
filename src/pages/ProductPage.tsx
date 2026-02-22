@@ -11,6 +11,7 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus'
 import { useAuth } from '../hooks/useAuth'
 import { useWishlist } from '../hooks/useWishlist'
 import ProductCard from '../components/products/ProductCard'
+import ProductReviews from '../components/products/ProductReviews'
 import ErrorState from '../components/ui/ErrorState'
 import { sileo } from 'sileo'
 
@@ -451,6 +452,7 @@ export default function ProductPage() {
               </Link>
             )}
           </div>
+          <ProductReviews productId={product.id} />
 
           {/* Skeleton mientras carga, grid real cuando termina */}
           {loadingRelated ? (
