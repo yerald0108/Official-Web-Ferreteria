@@ -2,11 +2,10 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Star, MessageSquare, Pencil, CheckCircle } from 'lucide-react'
 import { sileo } from 'sileo'
-// ⚠️ Ajusta estas rutas según la ubicación real de los archivos en tu proyecto
-import { useAuth } from '../../hooks/useAuth'              // ruta a tu hook useAuth existente
+import { useAuth } from '../../hooks/useAuth'              
 import { useProductReviews } from '../../hooks/useReviews'
 import type { Review } from '../../hooks/useReviews'
-import StarRating from './StarRating'                       // StarRating.tsx en la misma carpeta
+import StarRating from '../ui/StarRating'                       
 
 interface Props {
   productId: string
