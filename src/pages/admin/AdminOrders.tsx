@@ -45,6 +45,8 @@ export default function AdminOrders() {
     }
   }
 
+  console.log('orders:', orders, 'loading:', loading)
+
   return (
     <div className="space-y-5">
       <div>

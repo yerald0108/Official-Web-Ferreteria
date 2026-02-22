@@ -8,15 +8,27 @@ export function useAdminOrders() {
   const [loading, setLoading] = useState(true)
 
   const fetchOrders = async () => {
-    const { data } = await supabase
+    setLoading(true)
+    const { data, error } = await supabase
       .from('orders')
       .select(`
         *,
         order_items(*),
-        profile:profiles(full_name, phone)
+        profile:profiles!orders_user_id_fkey(full_name, phone)
       `)
       .order('created_at', { ascending: false })
-    setOrders(data ?? [])
+
+    if (error) {
+      console.error('Error fetching orders:', error)
+      // Intentar sin el join de profiles si falla
+      const { data: fallback } = await supabase
+        .from('orders')
+        .select('*, order_items(*)')
+        .order('created_at', { ascending: false })
+      setOrders(fallback ?? [])
+    } else {
+      setOrders(data ?? [])
+    }
     setLoading(false)
   }
 
