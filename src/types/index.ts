@@ -78,3 +78,11 @@ export interface OrderStatusHistory {
   changed_at: string
   note: string | null
 }
+
+export interface WishlistItem {
+  id: string
+  user_id: string
+  product_id: string
+  created_at: string
+  product?: Product
+}

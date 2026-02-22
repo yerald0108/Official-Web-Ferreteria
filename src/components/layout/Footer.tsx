@@ -29,6 +29,7 @@ export default function Footer() {
     { label: 'Mi carrito', to: '/cart' },
     { label: 'Mis pedidos', to: '/orders' },
     { label: 'Mi perfil', to: '/profile' },
+    { label: 'Mis favoritos', to: '/favoritos' },
   ]
 
   const categories = [

@@ -23,6 +23,7 @@ import AboutPage   from './pages/AboutPage'
 import ContactPage from './pages/ContactPage'
 import AdminCategories from './pages/admin/AdminCategories'
 import NotFoundPage from './pages/NotFoundPage'
+import WishlistPage  from './pages/WishlistPage'
 
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -63,6 +64,7 @@ export default function App() {
           <Route path="/contacto" element={<ContactPage />} />
           <Route path="/product/:id" element={<ProductPage />} />
           <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
+          <Route path="/favoritos"  element={<PrivateRoute><WishlistPage /></PrivateRoute>} />
           <Route path="/orders/:id" element={<PrivateRoute><OrderConfirmationPage /></PrivateRoute>} />
         </Route>
         

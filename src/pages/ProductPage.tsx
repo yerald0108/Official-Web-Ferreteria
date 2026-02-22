@@ -3,11 +3,13 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, ShoppingCart, Package, Tag,
-  CheckCircle, AlertCircle, Minus, Plus, ChevronRight, Share2
+  CheckCircle, AlertCircle, Minus, Plus, ChevronRight, Share2, Heart
 } from 'lucide-react'
 import { useProduct, useRelatedProducts } from '../hooks/useProducts'
 import { useCartStore } from '../store/cartStore'
 import { useNetworkStatus } from '../hooks/useNetworkStatus'
+import { useAuth } from '../hooks/useAuth'
+import { useWishlist } from '../hooks/useWishlist'
 import ProductCard from '../components/products/ProductCard'
 import ErrorState from '../components/ui/ErrorState'
 import { sileo } from 'sileo'
@@ -52,6 +54,10 @@ export default function ProductPage() {
   const [quantity, setQuantity]     = useState(1)
   const [added, setAdded]           = useState(false)
 
+  const { user }                          = useAuth()
+  const { isWishlisted, toggleWishlist }  = useWishlist(user?.id)
+  const wishlisted                        = product ? isWishlisted(product.id) : false
+
   const handleAdd = () => {
     if (!product) return
     const antes = getTotalItems()
@@ -81,6 +87,28 @@ export default function ProductPage() {
       await navigator.clipboard.writeText(window.location.href)
       sileo.success({ title: 'Enlace copiado al portapapeles' })
     }
+  }
+
+  const handleWishlist = async () => {
+    if (!user) {
+      sileo.warning({
+        title: 'Inicia sesión',
+        description: 'Necesitas una cuenta para guardar favoritos',
+        button: { title: 'Iniciar sesión', onClick: () => navigate('/login') },
+      })
+      return
+    }
+
+    if (!product) return
+
+    await toggleWishlist(product.id)
+    sileo.success({
+      title: wishlisted ? 'Eliminado de favoritos' : '❤️ Agregado a favoritos',
+      description: product.name,
+      ...(!wishlisted && {
+        button: { title: 'Ver favoritos', onClick: () => navigate('/favoritos') },
+      }),
+    })
   }
 
   // ── Loading skeleton principal ────────────────────────────────
@@ -203,6 +231,33 @@ export default function ProductPage() {
               </Link>
             </div>
           )}
+
+          {/* Botones flotantes derecha */}
+        <div className="absolute top-4 right-4 flex flex-col gap-2">
+          {/* Compartir */}
+          <button
+            onClick={handleShare}
+            className="w-9 h-9 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-full flex items-center justify-center text-gray-500 hover:text-orange-500 hover:border-orange-300 transition-all shadow-sm"
+          >
+            <Share2 size={15} />
+          </button>
+
+          {/* Corazón — NUEVO */}
+          <button
+            onClick={handleWishlist}
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm border ${
+              wishlisted
+                ? 'bg-red-500 border-red-500 text-white scale-110'
+                : 'bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-700 text-gray-400 hover:text-red-500 hover:border-red-300 hover:scale-110'
+            }`}
+          >
+            <Heart
+              size={15}
+              fill={wishlisted ? 'currentColor' : 'none'}
+              className="transition-all duration-200"
+            />
+          </button>
+        </div>
 
           <button
             onClick={handleShare}
@@ -331,6 +386,23 @@ export default function ProductPage() {
                 )}
               </AnimatePresence>
             </motion.button>
+            
+            {/* Botón favoritos — NUEVO */}
+            <button
+              onClick={handleWishlist}
+              className={`flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl text-sm font-bold transition-all border-2 ${
+                wishlisted
+                  ? 'bg-red-50 border-red-400 text-red-500 dark:bg-red-900/20'
+                  : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-red-300 hover:text-red-500'
+              }`}
+            >
+              <Heart
+                size={18}
+                fill={wishlisted ? 'currentColor' : 'none'}
+                className="transition-all duration-200"
+              />
+              {wishlisted ? 'En favoritos' : 'Guardar'}
+            </button>
 
             <Link
               to="/cart"

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ShoppingCart, Wrench, LogOut, LayoutDashboard,
-    ShoppingBag, Settings, ChevronDown, Shield, BriefcaseBusiness
+  ShoppingBag, Settings, ChevronDown, Shield, BriefcaseBusiness, Heart
 } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useCartStore } from '../../store/cartStore'
@@ -51,20 +51,21 @@ export default function Navbar() {
     // Admin
     ...(isAdmin ? [
       { icon: LayoutDashboard, label: 'Panel de administración', to: '/admin',   color: 'text-orange-500' },
-      { icon: Settings,          label: 'Editar perfil',           to: '/profile',}
+      
     ] : []),
 
     // Gestor
     ...(isGestor ? [
       { icon: BriefcaseBusiness, label: 'Gestionar productos', to: '/gestor/products', color: 'text-blue-500' },
-      { icon: Settings,          label: 'Editar perfil',           to: '/profile',}
     ] : []),
 
     // Cliente y todos
     ...(!isAdmin && !isGestor ? [
-      { icon: Settings,   label: 'Editar perfil', to: '/profile', color: 'text-gray-500' },
+      
     ] : []),
     { icon: ShoppingBag, label: 'Mis pedidos',    to: '/orders',  color: 'text-gray-500' },
+    { icon: Heart,    label: 'Mis favoritos',   to: '/favoritos', color: 'text-red-400'  },
+    { icon: Settings,          label: 'Editar perfil',           to: '/profile'},
   ]
 
   return (
