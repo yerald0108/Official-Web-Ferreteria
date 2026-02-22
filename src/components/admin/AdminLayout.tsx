@@ -20,7 +20,7 @@ export default function AdminLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="h-screen bg-gray-50 flex overflow-hidden">
       <Toaster position="top-right" />
 
       {/* Sidebar */}
@@ -79,7 +79,7 @@ export default function AdminLayout() {
       </aside>
 
       {/* Contenido */}
-      <main className="flex-1 ml-56 p-6">
+      <main className="flex-1 ml-56 h-screen overflow-hidden flex flex-col p-6">
         <Outlet />
       </main>
     </div>
