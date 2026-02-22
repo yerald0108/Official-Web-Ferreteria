@@ -370,7 +370,7 @@ export default function OrdersPage() {
 
     supabase
       .from('orders')
-      .select('*, order_items(*)')
+      .select('*, order_items(*),  order_status_history(*)')
       .eq('user_id', profile.id)
       .order('created_at', { ascending: false })
       .then(({ data, error }) => {

@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase'
 import { launchConfetti } from '../hooks/useConfetti'
 import type { Order } from '../types'
 import { sileo } from 'sileo'
+import OrderStatusTimeline from '../components/orders/OrderStatusTimeline'
 
 const STATUS_STEPS = [
   { key: 'pending',    label: 'Pedido recibido',   icon: ClipboardList, desc: 'Estamos procesando tu pedido' },
@@ -36,7 +37,8 @@ export default function OrderConfirmationPage() {
     if (!id) return
     supabase
       .from('orders')
-      .select('*, order_items(*)')
+      // ← CAMBIO: añadido order_status_history(*) al select
+      .select('*, order_items(*), order_status_history(*)')
       .eq('id', id)
       .single()
       .then(({ data, error }) => {
@@ -179,7 +181,7 @@ export default function OrderConfirmationPage() {
         )}
       </AnimatePresence>
 
-      {/* ── TIMELINE DE PROGRESO ─────────────────────────────── */}
+      {/* ── TIMELINE DE PROGRESO (barra visual decorativa) ───── */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -267,6 +269,39 @@ export default function OrderConfirmationPage() {
             })}
           </div>
         </div>
+      </motion.div>
+
+      {/* ── HISTORIAL REAL DE ESTADOS ───────────────────────────
+           NUEVO BLOQUE: muestra las fechas y horas exactas de cada
+           cambio de estado registrado en order_status_history
+      ── */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.7 }}
+        className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="font-bold text-gray-900 dark:text-white text-sm">
+            Historial de cambios
+          </h2>
+          {order.order_status_history && order.order_status_history.length > 0 && (
+            <span className="text-xs text-gray-400 bg-gray-50 dark:bg-gray-800 px-2.5 py-1 rounded-full border border-gray-100 dark:border-gray-700">
+              {order.order_status_history.length} evento{order.order_status_history.length !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+
+        {order.order_status_history && order.order_status_history.length > 0 ? (
+          <OrderStatusTimeline
+            history={order.order_status_history}
+            currentStatus={order.status}
+          />
+        ) : (
+          <p className="text-sm text-gray-400 text-center py-4">
+            Sin historial disponible.
+          </p>
+        )}
       </motion.div>
 
       {/* ── DETALLES DEL PEDIDO ──────────────────────────────── */}

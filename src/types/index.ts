@@ -52,6 +52,7 @@ export interface Order {
     phone: string
     email?: string
   }
+  order_status_history?: OrderStatusHistory[]
 }
 
 export interface OrderItem {
@@ -67,4 +68,13 @@ export interface OrderItem {
 export interface CartItem {
   product: Product
   quantity: number
+}
+
+export interface OrderStatusHistory {
+  id: string
+  order_id: string
+  status: string
+  changed_by: string | null
+  changed_at: string
+  note: string | null
 }

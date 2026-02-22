@@ -10,6 +10,7 @@ import {
   Calendar, Hash, MessageSquare,
   ShoppingBag, TrendingUp, Eye, Loader2,
 } from 'lucide-react'
+import OrderStatusTimeline from '../../components/orders/OrderStatusTimeline'
 
 // ── Configuración de estados ──────────────────────────────────────
 const STATUSES = [
@@ -391,52 +392,31 @@ function OrderDetail({ order, onStatusChange, loadingStatus }: {
         </div>
       </div>
 
-      {/* ── TIMELINE ── */}
+      {/* ── HISTORIAL REAL DE ESTADOS ──────────────────────────
+           CAMBIO: sustituye el bloque TIMELINE estático por el
+           componente OrderStatusTimeline con fechas reales de BD
+      ── */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-          <TrendingUp size={12} /> Progreso del pedido
-        </p>
-        {order.status === 'cancelled' ? (
-          <div className="flex items-center gap-3 bg-red-50 border border-red-100 rounded-xl p-3.5">
-            <XCircle size={20} className="text-red-500 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-bold text-red-700">Pedido cancelado</p>
-              <p className="text-xs text-red-500 mt-0.5">Este pedido fue cancelado</p>
-            </div>
-          </div>
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+            <TrendingUp size={12} /> Historial de estados
+          </p>
+          {order.order_status_history && order.order_status_history.length > 0 && (
+            <span className="text-xs text-gray-400 bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full">
+              {order.order_status_history.length} evento{order.order_status_history.length !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+
+        {order.order_status_history && order.order_status_history.length > 0 ? (
+          <OrderStatusTimeline
+            history={order.order_status_history}
+            currentStatus={order.status}
+          />
         ) : (
-          <div className="relative">
-            <div className="absolute left-4 top-4 bottom-4 w-0.5 bg-gray-100" />
-            <div className="space-y-3">
-              {NON_CANCELLED.map(st => {
-                const currentIdx = NON_CANCELLED.findIndex(x => x.value === order.status)
-                const stIdx      = NON_CANCELLED.findIndex(x => x.value === st.value)
-                const isDone     = stIdx <= currentIdx
-                const isCurrent  = st.value === order.status
-                const StIcon     = st.icon
-                return (
-                  <div key={st.value} className="relative flex items-center gap-4">
-                    <div className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center border-2 flex-shrink-0 transition-all ${
-                      isDone ? `${st.dot} border-transparent shadow-md` : 'bg-white border-gray-200'
-                    }`}>
-                      <StIcon size={14} className={isDone ? 'text-white' : 'text-gray-300'} />
-                      {isCurrent && (
-                        <span className={`absolute inset-0 rounded-full ${st.dot} opacity-30 animate-ping`} />
-                      )}
-                    </div>
-                    <p className={`text-sm font-semibold ${isDone ? 'text-gray-900' : 'text-gray-300'}`}>
-                      {st.label}
-                      {isCurrent && (
-                        <span className={`ml-2 text-xs px-2 py-0.5 rounded-full font-normal ${st.badge}`}>
-                          Actual
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+          <p className="text-sm text-gray-400 text-center py-4">
+            Sin historial registrado para este pedido.
+          </p>
         )}
       </div>
 
