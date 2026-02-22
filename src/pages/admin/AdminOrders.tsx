@@ -158,14 +158,11 @@ function OrderCard({ order, isSelected, onClick }: {
         </div>
         {order.profile?.phone && (
           <p className="text-xs text-gray-400 flex-shrink-0 flex items-center gap-1">
-            <Phone size={10} />
-            {order.profile.phone}
           </p>
         )}
         {order.profile?.email && (
           <div className="flex items-center gap-1.5 mt-1">
             <span className="text-xs text-gray-400">✉️</span>
-            <p className="text-sm font-medium text-gray-600">{order.profile.email}</p>
           </div>
         )}
       </div>
