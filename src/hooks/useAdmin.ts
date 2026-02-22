@@ -14,7 +14,8 @@ export function useAdminOrders() {
       .select(`
         *,
         order_items(*),
-        profile:profiles!orders_user_id_fkey(full_name, phone, email)
+        profile:profiles!orders_user_id_fkey(full_name, phone, email),
+        order_status_history(*)
       `)
       .order('created_at', { ascending: false })
 
