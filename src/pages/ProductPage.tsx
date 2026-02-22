@@ -44,7 +44,6 @@ export default function ProductPage() {
   const navigate     = useNavigate()
   const { product, loading, error } = useProduct(id ?? '')
 
-  // ← loading ahora viene del hook modificado
   const { products: related, loading: loadingRelated } = useRelatedProducts(
     product?.category_id ?? null,
     id ?? ''
@@ -234,38 +233,31 @@ export default function ProductPage() {
           )}
 
           {/* Botones flotantes derecha */}
-        <div className="absolute top-4 right-4 flex flex-col gap-2">
-          {/* Compartir */}
-          <button
-            onClick={handleShare}
-            className="w-9 h-9 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-full flex items-center justify-center text-gray-500 hover:text-orange-500 hover:border-orange-300 transition-all shadow-sm"
-          >
-            <Share2 size={15} />
-          </button>
+          <div className="absolute top-4 right-4 flex flex-col gap-2">
+            {/* Compartir */}
+            <button
+              onClick={handleShare}
+              className="w-9 h-9 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-full flex items-center justify-center text-gray-500 hover:text-orange-500 hover:border-orange-300 transition-all shadow-sm"
+            >
+              <Share2 size={15} />
+            </button>
 
-          {/* Corazón — NUEVO */}
-          <button
-            onClick={handleWishlist}
-            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm border ${
-              wishlisted
-                ? 'bg-red-500 border-red-500 text-white scale-110'
-                : 'bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-700 text-gray-400 hover:text-red-500 hover:border-red-300 hover:scale-110'
-            }`}
-          >
-            <Heart
-              size={15}
-              fill={wishlisted ? 'currentColor' : 'none'}
-              className="transition-all duration-200"
-            />
-          </button>
-        </div>
-
-          <button
-            onClick={handleShare}
-            className="absolute top-4 right-4 w-9 h-9 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-full flex items-center justify-center text-gray-500 hover:text-orange-500 hover:border-orange-300 transition-all shadow-sm"
-          >
-            <Share2 size={15} />
-          </button>
+            {/* Corazón */}
+            <button
+              onClick={handleWishlist}
+              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm border ${
+                wishlisted
+                  ? 'bg-red-500 border-red-500 text-white scale-110'
+                  : 'bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-700 text-gray-400 hover:text-red-500 hover:border-red-300 hover:scale-110'
+              }`}
+            >
+              <Heart
+                size={15}
+                fill={wishlisted ? 'currentColor' : 'none'}
+                className="transition-all duration-200"
+              />
+            </button>
+          </div>
         </motion.div>
 
         {/* Info del producto */}
@@ -388,7 +380,7 @@ export default function ProductPage() {
               </AnimatePresence>
             </motion.button>
             
-            {/* Botón favoritos — NUEVO */}
+            {/* Botón favoritos */}
             <button
               onClick={handleWishlist}
               className={`flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl text-sm font-bold transition-all border-2 ${
@@ -429,6 +421,11 @@ export default function ProductPage() {
         </motion.div>
       </div>
 
+      {/* ── Reseñas y valoraciones ─────────────────────────────────── */}
+      {/* FIX: Movido fuera del bloque condicional de relacionados para que
+           siempre se renderice independientemente de si hay productos relacionados */}
+      <ProductReviews productId={product.id} />
+
       {/* ── Productos relacionados ──────────────────────────────── */}
       {/* Se muestra mientras carga (skeleton) O cuando hay resultados */}
       {(loadingRelated || related.length > 0) && (
@@ -452,7 +449,6 @@ export default function ProductPage() {
               </Link>
             )}
           </div>
-          <ProductReviews productId={product.id} />
 
           {/* Skeleton mientras carga, grid real cuando termina */}
           {loadingRelated ? (
