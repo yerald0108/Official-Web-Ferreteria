@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { sileo } from 'sileo'
 import { Plus, Pencil, Trash2, Eye, EyeOff, Upload } from 'lucide-react'
+import ConfirmModal from '../../components/ui/ConfirmModal'
 import { supabase } from '../../lib/supabase'
 import { useAdminProducts, useAdminCategories } from '../../hooks/useAdmin'
 import { InputField } from '../../components/ui/InputField'
@@ -28,6 +29,8 @@ export default function AdminProducts() {
   const [editing, setEditing]     = useState<Product | null>(null)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
+  const [deleting, setDeleting]         = useState(false)
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -54,11 +57,17 @@ export default function AdminProducts() {
     setShowForm(true)
   }
 
-  const handleDelete = async (product: Product) => {
-    if (!confirm(`¿Eliminar "${product.name}"? Esta acción no se puede deshacer.`)) return
-    const error = await deleteProduct(product.id)
-    if (error) sileo.error({ title: 'Error al eliminar', description: error.message })
-    else sileo.success({ title: 'Producto eliminado', description: product.name })
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    const error = await deleteProduct(deleteTarget.id)
+    setDeleting(false)
+    if (error) {
+      sileo.error({ title: 'Error al eliminar', description: error.message })
+    } else {
+      sileo.success({ title: 'Producto eliminado', description: deleteTarget.name })
+    }
+    setDeleteTarget(null)
   }
 
   const handleToggle = async (product: Product) => {
@@ -111,6 +120,20 @@ export default function AdminProducts() {
 
   return (
     <div className="space-y-5">
+      <ConfirmModal
+        open={deleteTarget !== null}
+        variant="danger"
+        title="¿Eliminar producto?"
+        description={
+          deleteTarget
+            ? `Estás a punto de eliminar "${deleteTarget.name}". Esta acción es permanente y no se puede deshacer.`
+            : ''
+          }
+        confirmLabel={deleting ? 'Eliminando...' : 'Sí, eliminar'}
+        cancelLabel="Cancelar"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Productos</h1>
@@ -286,7 +309,7 @@ export default function AdminProducts() {
                         {product.is_active ? <EyeOff size={15} /> : <Eye size={15} />}
                       </button>
                       <button
-                        onClick={() => handleDelete(product)}
+                        onClick={() => setDeleteTarget(product)}
                         className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
                         title="Eliminar"
                       >

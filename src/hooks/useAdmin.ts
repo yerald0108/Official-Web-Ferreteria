@@ -81,11 +81,37 @@ export function useAdminProducts() {
 
 export function useAdminCategories() {
   const [categories, setCategories] = useState<Category[]>([])
+  const [loading, setLoading]       = useState(true)
 
-  useEffect(() => {
-    supabase.from('categories').select('*').order('name')
-      .then(({ data }) => setCategories(data ?? []))
-  }, [])
+  const fetchCategories = async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('categories')
+      .select('*')
+      .order('name')
+    setCategories(data ?? [])
+    setLoading(false)
+  }
 
-  return { categories }
+  useEffect(() => { fetchCategories() }, [])
+
+  const createCategory = async (payload: { name: string; slug: string; description?: string }) => {
+    const { error } = await supabase.from('categories').insert(payload)
+    if (!error) fetchCategories()
+    return error
+  }
+
+  const updateCategory = async (id: string, payload: { name: string; slug: string; description?: string }) => {
+    const { error } = await supabase.from('categories').update(payload).eq('id', id)
+    if (!error) fetchCategories()
+    return error
+  }
+
+  const deleteCategory = async (id: string) => {
+    const { error } = await supabase.from('categories').delete().eq('id', id)
+    if (!error) fetchCategories()
+    return error
+  }
+
+  return { categories, loading, createCategory, updateCategory, deleteCategory, refetch: fetchCategories }
 }

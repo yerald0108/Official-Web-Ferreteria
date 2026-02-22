@@ -21,6 +21,7 @@ import ProductPage from './pages/ProductPage'
 import OrderConfirmationPage from './pages/OrderConfirmationPage'
 import AboutPage   from './pages/AboutPage'
 import ContactPage from './pages/ContactPage'
+import AdminCategories from './pages/admin/AdminCategories'
 import NotFoundPage from './pages/NotFoundPage'
 
 
@@ -72,6 +73,8 @@ export default function App() {
           <Route path="orders"   element={<AdminOrders />} />
           <Route path="products" element={<AdminProducts />} />
           <Route path="users" element={<AdminUsers />} />
+          <Route path="categories" element={<AdminCategories />} />
+          
         </Route>
 
         {/* Rutas gestor */}

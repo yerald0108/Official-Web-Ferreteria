@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  LabelList,
 } from 'recharts'
 import {
   ShoppingBag, Package, Clock, CheckCircle,
@@ -120,28 +121,37 @@ interface Stats {
   totalRevenue:     number
 }
 
+interface TopProduct {
+  product_id:   string
+  product_name: string
+  units_sold:   number
+  revenue:      number
+}
+
 // ── Componente principal ──────────────────────────────────────────
 export default function AdminDashboard() {
-  const [stats,      setStats]      = useState<Stats | null>(null)
-  const [orders,     setOrders]     = useState<Order[]>([])
-  const [products,   setProducts]   = useState<Product[]>([])
-  const [loading,    setLoading]    = useState(true)
-  const [fetchError, setFetchError] = useState(false)
-  const { isOnline }                = useNetworkStatus()
+  const [stats,       setStats]       = useState<Stats | null>(null)
+  const [orders,      setOrders]      = useState<Order[]>([])
+  const [products,    setProducts]    = useState<Product[]>([])
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([])
+  const [loading,     setLoading]     = useState(true)
+  const [fetchError,  setFetchError]  = useState(false)
+  const { isOnline }                  = useNetworkStatus()
 
   const fetchAll = useCallback(async () => {
-    // Reinicia el estado de error antes de cada intento
     setFetchError(false)
     setLoading(true)
 
     try {
-      const [ordersRes, productsRes] = await Promise.all([
+      const [ordersRes, productsRes, itemsRes] = await Promise.all([
         supabase.from('orders').select('*'),
         supabase.from('products').select('*, category:categories(name)'),
+        supabase
+          .from('order_items')
+          .select('product_id, product_name, product_price, quantity, subtotal'),
       ])
 
-      // Si cualquiera de las dos consultas falla, mostramos el error
-      if (ordersRes.error || productsRes.error) {
+      if (ordersRes.error || productsRes.error || itemsRes.error) {
         setFetchError(true)
         setLoading(false)
         return
@@ -149,9 +159,34 @@ export default function AdminDashboard() {
 
       const allOrders   = (ordersRes.data   ?? []) as Order[]
       const allProducts = (productsRes.data ?? []) as Product[]
+      const allItems    = itemsRes.data ?? []
 
       setOrders(allOrders)
       setProducts(allProducts)
+
+      // ── Calcular top productos ──────────────────────────────────
+      const productMap: Record<string, TopProduct> = {}
+
+      for (const item of allItems) {
+        if (!item.product_id) continue
+        if (!productMap[item.product_id]) {
+          productMap[item.product_id] = {
+            product_id:   item.product_id,
+            product_name: item.product_name,
+            units_sold:   0,
+            revenue:      0,
+          }
+        }
+        productMap[item.product_id].units_sold += item.quantity
+        productMap[item.product_id].revenue    += item.subtotal
+      }
+
+      const top = Object.values(productMap)
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 8)
+
+      setTopProducts(top)
+
       setStats({
         totalOrders:      allOrders.length,
         pendingOrders:    allOrders.filter(o => o.status === 'pending').length,
@@ -163,7 +198,6 @@ export default function AdminDashboard() {
           .reduce((s, o) => s + o.total, 0),
       })
     } catch {
-      // Error de red inesperado (timeout, fetch fallido, etc.)
       setFetchError(true)
     } finally {
       setLoading(false)
@@ -173,8 +207,8 @@ export default function AdminDashboard() {
   useEffect(() => { fetchAll() }, [fetchAll])
 
   // ── Datos para gráficas ────────────────────────────────────────
-  const dailyData    = groupByDay(orders)
-  const PIE_COLORS   = [ORANGE, BLUE, GREEN, PURPLE, AMBER, RED]
+  const dailyData  = groupByDay(orders)
+  const PIE_COLORS = [ORANGE, BLUE, GREEN, PURPLE, AMBER, RED]
 
   const statusData = Object.entries(STATUS_LABELS).map(([value, label]) => ({
     name:  label,
@@ -182,7 +216,7 @@ export default function AdminDashboard() {
     color: STATUS_COLORS[value],
   })).filter(d => d.value > 0)
 
-  const stockData = products
+  const lowStockData = products
     .filter(p => p.is_active)
     .sort((a, b) => a.stock - b.stock)
     .slice(0, 8)
@@ -210,7 +244,7 @@ export default function AdminDashboard() {
     { label: 'Ingresos totales',  value: stats.totalRevenue,     icon: TrendingUp,  color: 'from-orange-400 to-orange-600', prefix: '$', decimals: 2 },
   ] : []
 
-  // ── Estado 1: cargando ─────────────────────────────────────────
+  // ── Estado: cargando ───────────────────────────────────────────
   if (loading) {
     return (
       <div className="space-y-6">
@@ -228,11 +262,10 @@ export default function AdminDashboard() {
     )
   }
 
-  // ── Estado 2: sin conexión o error del servidor ────────────────
+  // ── Estado: sin conexión o error ───────────────────────────────
   if (!isOnline || fetchError) {
     return (
       <div className="space-y-4">
-        {/* Mantenemos el header para que el admin sepa dónde está */}
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-400 text-sm mt-1">Visión general de tu ferretería</p>
@@ -240,7 +273,6 @@ export default function AdminDashboard() {
         <div className="py-6">
           <ErrorState
             type={!isOnline ? 'network' : 'server'}
-            // El botón de reintento llama directamente a fetchAll
             onRetry={fetchAll}
           />
         </div>
@@ -248,9 +280,10 @@ export default function AdminDashboard() {
     )
   }
 
-  // ── Estado 3: datos cargados correctamente ─────────────────────
+  // ── Estado: datos cargados ─────────────────────────────────────
   return (
     <div className="space-y-6">
+
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
@@ -277,7 +310,7 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Gráfica 1: Pedidos por día (Area) */}
+      {/* Gráfica 1: Pedidos por día */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
         <h2 className="font-bold text-gray-900 mb-1">Pedidos últimos 7 días</h2>
         <p className="text-xs text-gray-400 mb-5">Cantidad de pedidos recibidos por día</p>
@@ -310,7 +343,7 @@ export default function AdminDashboard() {
         </ResponsiveContainer>
       </div>
 
-      {/* Gráfica 2: Ingresos por día (Area) */}
+      {/* Gráfica 2: Ingresos por día */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
         <h2 className="font-bold text-gray-900 mb-1">Ingresos últimos 7 días</h2>
         <p className="text-xs text-gray-400 mb-5">Solo pedidos con estado "Entregado"</p>
@@ -328,7 +361,7 @@ export default function AdminDashboard() {
               tick={{ fontSize: 11, fill: '#94a3b8' }}
               axisLine={false}
               tickLine={false}
-              tickFormatter={v => `$${v}`}
+              tickFormatter={(v: number) => `$${v}`}
             />
             <Tooltip content={<CustomTooltip />} />
             <Area
@@ -348,10 +381,10 @@ export default function AdminDashboard() {
         </ResponsiveContainer>
       </div>
 
-      {/* Fila: Pie de estados + Pie de categorías */}
+      {/* Fila: Pie estados + Pie categorías */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-        {/* Gráfica 3: Estado de pedidos (Pie) */}
+        {/* Gráfica 3: Estado de pedidos */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
           <h2 className="font-bold text-gray-900 mb-1">Estado de pedidos</h2>
           <p className="text-xs text-gray-400 mb-4">Distribución por estado actual</p>
@@ -392,7 +425,7 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        {/* Gráfica 4: Productos por categoría (Pie) */}
+        {/* Gráfica 4: Productos por categoría */}
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
           <h2 className="font-bold text-gray-900 mb-1">Productos por categoría</h2>
           <p className="text-xs text-gray-400 mb-4">Distribución del catálogo</p>
@@ -433,7 +466,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Gráfica 5: Stock de productos (Bar horizontal) */}
+      {/* Gráfica 5: Stock bajo (bar horizontal) */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
         <h2 className="font-bold text-gray-900 mb-1">Stock de productos</h2>
         <p className="text-xs text-gray-400 mb-5">
@@ -442,15 +475,15 @@ export default function AdminDashboard() {
           <span className="text-amber-400 font-medium"> amarillo ≤15</span>,
           <span className="text-green-500 font-medium"> verde OK</span>
         </p>
-        {stockData.length === 0 ? (
+        {lowStockData.length === 0 ? (
           <div className="h-52 flex items-center justify-center text-gray-300 text-sm">
             Sin productos aún
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={Math.max(200, stockData.length * 42)}>
+          <ResponsiveContainer width="100%" height={Math.max(200, lowStockData.length * 42)}>
             <BarChart
               layout="vertical"
-              data={stockData}
+              data={lowStockData}
               margin={{ top: 0, right: 20, left: 10, bottom: 0 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
@@ -478,7 +511,7 @@ export default function AdminDashboard() {
                 animationDuration={800}
                 animationEasing="ease-out"
               >
-                {stockData.map((entry, i) => (
+                {lowStockData.map((entry, i) => (
                   <Cell key={i} fill={entry.fill} />
                 ))}
               </Bar>
@@ -486,6 +519,141 @@ export default function AdminDashboard() {
           </ResponsiveContainer>
         )}
       </div>
+
+      {/* Gráfica 6: Top productos por unidades vendidas */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="font-bold text-gray-900">Top productos por unidades vendidas</h2>
+          <span className="text-xs text-gray-400 bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full">
+            Todos los pedidos
+          </span>
+        </div>
+        <p className="text-xs text-gray-400 mb-5">
+          Cantidad total de unidades vendidas por producto
+        </p>
+        {topProducts.length === 0 ? (
+          <div className="h-52 flex items-center justify-center text-gray-300 text-sm">
+            Sin datos de ventas aún
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={Math.max(220, topProducts.length * 46)}>
+            <BarChart
+              layout="vertical"
+              data={topProducts}
+              margin={{ top: 0, right: 60, left: 10, bottom: 0 }}
+            >
+              <defs>
+                <linearGradient id="gradUnits" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%"   stopColor={ORANGE} stopOpacity={0.8} />
+                  <stop offset="100%" stopColor={AMBER}  stopOpacity={1}   />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+              <XAxis
+                type="number"
+                tick={{ fontSize: 11, fill: '#94a3b8' }}
+                axisLine={false}
+                tickLine={false}
+                allowDecimals={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="product_name"
+                width={150}
+                tick={{ fontSize: 11, fill: '#64748b' }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v: string) => v.length > 22 ? v.slice(0, 22) + '…' : v}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar
+                dataKey="units_sold"
+                name="Unidades vendidas"
+                fill="url(#gradUnits)"
+                radius={[0, 8, 8, 0]}
+                isAnimationActive
+                animationDuration={800}
+                animationEasing="ease-out"
+              >
+                <LabelList
+                  dataKey="units_sold"
+                  position="right"
+                  style={{ fontSize: 11, fontWeight: 700, fill: '#f97316' }}
+                  formatter={(v: unknown) => `${v} ud.`}
+                />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      {/* Gráfica 7: Top productos por ingresos */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="font-bold text-gray-900">Top productos por ingresos generados</h2>
+          <span className="text-xs text-gray-400 bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-full">
+            Todos los pedidos
+          </span>
+        </div>
+        <p className="text-xs text-gray-400 mb-5">
+          Ingresos totales acumulados por producto en todos los pedidos
+        </p>
+        {topProducts.length === 0 ? (
+          <div className="h-52 flex items-center justify-center text-gray-300 text-sm">
+            Sin datos de ventas aún
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={Math.max(220, topProducts.length * 46)}>
+            <BarChart
+              layout="vertical"
+              data={topProducts}
+              margin={{ top: 0, right: 80, left: 10, bottom: 0 }}
+            >
+              <defs>
+                <linearGradient id="gradRevenue" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%"   stopColor={GREEN} stopOpacity={0.8} />
+                  <stop offset="100%" stopColor={BLUE}  stopOpacity={1}   />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+              <XAxis
+                type="number"
+                tick={{ fontSize: 11, fill: '#94a3b8' }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v: number) => `$${v}`}
+              />
+              <YAxis
+                type="category"
+                dataKey="product_name"
+                width={150}
+                tick={{ fontSize: 11, fill: '#64748b' }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v: string) => v.length > 22 ? v.slice(0, 22) + '…' : v}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar
+                dataKey="revenue"
+                name="Ingresos"
+                fill="url(#gradRevenue)"
+                radius={[0, 8, 8, 0]}
+                isAnimationActive
+                animationDuration={900}
+                animationEasing="ease-out"
+              >
+                <LabelList
+                  dataKey="revenue"
+                  position="right"
+                  style={{ fontSize: 11, fontWeight: 700, fill: '#22c55e' }}
+                  formatter={(v: unknown) => `$${Number(v).toFixed(0)}`}
+                />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
     </div>
   )
 }
