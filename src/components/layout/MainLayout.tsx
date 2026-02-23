@@ -8,7 +8,7 @@ export default function MainLayout() {
   useScrollTop()
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col transition-colors duration-300">
-      <Toaster position="top-right" />
+      <Toaster position="bottom-right" />
       <Navbar />
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
         <Outlet />

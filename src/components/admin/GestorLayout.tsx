@@ -14,7 +14,7 @@ export default function GestorLayout() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <Toaster position="top-right" />
+      <Toaster position="bottom-right" />
 
       {/* Sidebar */}
       <aside className="w-56 bg-white border-r border-gray-100 flex flex-col fixed h-full">

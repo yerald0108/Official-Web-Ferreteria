@@ -128,16 +128,25 @@ export function useProduct(id: string) {
 }
 
 // Hook para productos relacionados
+// Hook para productos relacionados
 export function useRelatedProducts(categoryId: string | null, excludeId: string) {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading]   = useState(true)
 
   useEffect(() => {
+    // categoryId aún no disponible: el producto padre sigue cargando.
+    // Mantenemos loading=true y limpiamos resultados anteriores.
     if (!categoryId) {
-      setLoading(false)
+      setLoading(true)
+      setProducts([])
       return
     }
+
+    // categoryId ya disponible: activar skeleton y hacer el fetch.
+    let cancelled = false
     setLoading(true)
+    setProducts([])
+
     supabase
       .from('products')
       .select('*, category:categories(*)')
@@ -146,9 +155,13 @@ export function useRelatedProducts(categoryId: string | null, excludeId: string)
       .neq('id', excludeId)
       .limit(4)
       .then(({ data }) => {
+        if (cancelled) return
         setProducts(data ?? [])
         setLoading(false)
       })
+
+    // Evita race conditions si categoryId cambia antes de que termine el fetch
+    return () => { cancelled = true }
   }, [categoryId, excludeId])
 
   return { products, loading }
