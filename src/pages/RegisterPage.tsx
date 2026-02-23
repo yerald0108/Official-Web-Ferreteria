@@ -4,17 +4,26 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Wrench, Eye, EyeOff, ArrowRight, ArrowLeft, User, Mail, Lock, CheckCircle2, ShieldCheck } from 'lucide-react'
+import { Wrench, Eye, EyeOff, ArrowRight, ArrowLeft, User, Mail, Lock, Phone, CheckCircle2, ShieldCheck, MapPin, Sun, Moon } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { sileo } from 'sileo'
+import { useThemeStore } from '../store/themeStore'
+import { PROVINCES, getMunicipalities } from '../utils/cuba'
 
 // ── Schemas por paso ──────────────────────────────────────────────────────────
 const step1Schema = z.object({
   full_name: z.string().min(2, 'Mínimo 2 caracteres'),
   email:     z.string().email('Correo inválido'),
+  phone:     z.string().min(8, 'Teléfono inválido').regex(/^\d+$/, 'Solo números'),
 })
 
 const step2Schema = z.object({
+  province:     z.string().min(1, 'Selecciona una provincia'),
+  municipality: z.string().min(1, 'Selecciona un municipio'),
+  address:      z.string().min(10, 'Escribe una dirección más detallada'),
+})
+
+const step3Schema = z.object({
   password: z
     .string()
     .min(8, 'Mínimo 8 caracteres')
@@ -28,6 +37,7 @@ const step2Schema = z.object({
 
 type Step1Data = z.infer<typeof step1Schema>
 type Step2Data = z.infer<typeof step2Schema>
+type Step3Data = z.infer<typeof step3Schema>
 
 // ── Evaluador de fortaleza ────────────────────────────────────────────────────
 type Strength = { score: number; label: string; color: string; barColor: string }
@@ -67,6 +77,8 @@ function Particle({ x, y, color }: { x: number; y: number; color: string }) {
 
 export default function RegisterPage() {
   const navigate = useNavigate()
+  const { isDark, toggle } = useThemeStore()
+
   const [step, setStep]             = useState(1)
   const [loading, setLoading]       = useState(false)
   const [mounted, setMounted]       = useState(false)
@@ -75,18 +87,21 @@ export default function RegisterPage() {
   const [passwordVal, setPasswordVal] = useState('')
   const [confirmVal, setConfirmVal]   = useState('')
   const [particles, setParticles]     = useState<{ id: number; x: number; y: number; color: string }[]>([])
-  const [step1Data, setStep1Data]     = useState<Step1Data | null>(null)
+
+  const [step1Data, setStep1Data] = useState<Step1Data | null>(null)
+  const [step2Data, setStep2Data] = useState<Step2Data | null>(null)
 
   useEffect(() => { setMounted(true) }, [])
 
   const form1 = useForm<Step1Data>({ resolver: zodResolver(step1Schema) })
   const form2 = useForm<Step2Data>({ resolver: zodResolver(step2Schema) })
+  const form3 = useForm<Step3Data>({ resolver: zodResolver(step3Schema) })
+
+  const selectedProvince = form2.watch('province')
 
   const strength = evaluateStrength(passwordVal)
   const passwordsMatch = passwordVal.length > 0 && passwordVal === confirmVal
 
-  // Dispara partículas cuando las contraseñas coinciden
-  const prevMatch = useState(false)
   const triggerParticles = useCallback(() => {
     const colors = ['#f97316', '#fb923c', '#fdba74', '#22c55e', '#86efac']
     const newParticles = Array.from({ length: 12 }, (_, i) => ({
@@ -101,7 +116,7 @@ export default function RegisterPage() {
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setPasswordVal(e.target.value)
-    form2.setValue('password', e.target.value, { shouldValidate: true })
+    form3.setValue('password', e.target.value, { shouldValidate: true })
   }
 
   const handleConfirmChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,7 +124,7 @@ export default function RegisterPage() {
     const wasMatch = passwordVal.length > 0 && passwordVal === confirmVal
     const nowMatch  = passwordVal.length > 0 && passwordVal === val
     setConfirmVal(val)
-    form2.setValue('confirm_password', val, { shouldValidate: true })
+    form3.setValue('confirm_password', val, { shouldValidate: true })
     if (!wasMatch && nowMatch) triggerParticles()
   }
 
@@ -119,7 +134,12 @@ export default function RegisterPage() {
   }
 
   const onStep2 = async (data: Step2Data) => {
-    if (!step1Data) return
+    setStep2Data(data)
+    setStep(3)
+  }
+
+  const onStep3 = async (data: Step3Data) => {
+    if (!step1Data || !step2Data) return
     setLoading(true)
 
     const { data: authData, error } = await supabase.auth.signUp({
@@ -138,10 +158,14 @@ export default function RegisterPage() {
 
     if (authData.user) {
       await supabase.from('profiles').upsert({
-        id:        authData.user.id,
-        full_name: step1Data.full_name,
-        email:     step1Data.email,
-        role:      'cliente',
+        id:           authData.user.id,
+        full_name:    step1Data.full_name,
+        email:        step1Data.email,
+        phone:        step1Data.phone,
+        province:     step2Data.province,
+        municipality: step2Data.municipality,
+        address:      step2Data.address,
+        role:         'cliente',
       })
     }
 
@@ -150,7 +174,7 @@ export default function RegisterPage() {
     navigate('/')
   }
 
-  // ── Indicadores de requisitos ─────────────────────────────────────────────
+  // ── Requisitos de contraseña ──────────────────────────────────────────────
   const requirements = [
     { met: passwordVal.length >= 8,           label: 'Al menos 8 caracteres' },
     { met: /[A-Z]/.test(passwordVal),         label: 'Una letra mayúscula' },
@@ -158,12 +182,29 @@ export default function RegisterPage() {
     { met: /[^A-Za-z0-9]/.test(passwordVal),  label: 'Un símbolo especial' },
   ]
 
+  const STEPS = [
+    { label: 'Tus datos',    n: 1 },
+    { label: 'Tu dirección', n: 2 },
+    { label: 'Contraseña',   n: 3 },
+  ]
+
   return (
     <div className="min-h-screen bg-gray-950 flex overflow-hidden">
 
+      {/* ── Botón tema — esquina superior derecha ── */}
+      <button
+        onClick={toggle}
+        className="fixed top-4 right-4 z-50 w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 flex items-center justify-center text-gray-300 hover:text-white transition-all backdrop-blur-sm"
+        title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+      >
+        {isDark
+          ? <Sun size={17} className="text-amber-400" />
+          : <Moon size={17} className="text-indigo-400" />
+        }
+      </button>
+
       {/* ── Panel izquierdo ── */}
       <div className="hidden lg:flex flex-col w-[48%] relative bg-gradient-to-br from-gray-900 via-gray-950 to-black p-12 overflow-hidden">
-
         <div
           className="absolute inset-0 opacity-[0.03]"
           style={{
@@ -171,7 +212,6 @@ export default function RegisterPage() {
             backgroundSize: '28px 28px',
           }}
         />
-
         <motion.div
           className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-orange-500/10 blur-3xl"
           animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.18, 0.1] }}
@@ -224,9 +264,9 @@ export default function RegisterPage() {
             className="mt-12 space-y-4"
           >
             {[
-              { n: '01', title: 'Crea tu cuenta',        desc: 'Nombre, correo y contraseña' },
-              { n: '02', title: 'Explora el catálogo',    desc: '+200 productos disponibles' },
-              { n: '03', title: 'Recibe en tu puerta',    desc: 'Entrega express en toda Cuba' },
+              { n: '01', title: 'Tus datos personales', desc: 'Nombre, correo y teléfono' },
+              { n: '02', title: 'Tu dirección',          desc: 'Provincia, municipio y dirección' },
+              { n: '03', title: 'Tu contraseña',         desc: 'Segura y fácil de recordar' },
             ].map(({ n, title, desc }, i) => (
               <motion.div
                 key={n}
@@ -235,11 +275,20 @@ export default function RegisterPage() {
                 transition={{ duration: 0.4, delay: 0.45 + i * 0.1 }}
                 className="flex items-start gap-4"
               >
-                <div className="w-8 h-8 rounded-lg bg-orange-500/20 border border-orange-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-orange-400 text-xs font-black">{n}</span>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 transition-all ${
+                  step > i + 1
+                    ? 'bg-green-500'
+                    : step === i + 1
+                    ? 'bg-orange-500/20 border border-orange-500/30'
+                    : 'bg-white/5 border border-white/10'
+                }`}>
+                  {step > i + 1
+                    ? <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    : <span className={`text-xs font-black ${step === i + 1 ? 'text-orange-400' : 'text-gray-600'}`}>{n}</span>
+                  }
                 </div>
                 <div>
-                  <p className="text-white text-sm font-semibold">{title}</p>
+                  <p className={`text-sm font-semibold transition-colors ${step === i + 1 ? 'text-white' : step > i + 1 ? 'text-green-400' : 'text-gray-500'}`}>{title}</p>
                   <p className="text-gray-500 text-xs mt-0.5">{desc}</p>
                 </div>
               </motion.div>
@@ -281,31 +330,35 @@ export default function RegisterPage() {
           </div>
 
           {/* Indicador de pasos */}
-          <div className="flex items-center gap-3 mb-8">
-            {[1, 2].map(s => (
-              <div key={s} className="flex items-center gap-2">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
-                  s < step
-                    ? 'bg-green-500 text-white'
-                    : s === step
-                    ? 'bg-orange-500 text-white ring-4 ring-orange-500/20'
-                    : 'bg-white/10 text-gray-500'
-                }`}>
-                  {s < step ? (
-                    <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                      <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  ) : s}
+          <div className="flex items-center gap-2 mb-8">
+            {STEPS.map((s, i) => (
+              <div key={s.n} className="flex items-center gap-2">
+                <div className="flex flex-col items-center gap-1">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                    s.n < step
+                      ? 'bg-green-500 text-white'
+                      : s.n === step
+                      ? 'bg-orange-500 text-white ring-4 ring-orange-500/20'
+                      : 'bg-white/10 text-gray-500'
+                  }`}>
+                    {s.n < step ? (
+                      <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                        <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    ) : s.n}
+                  </div>
+                  <span className={`text-[10px] font-medium whitespace-nowrap ${s.n === step ? 'text-white' : 'text-gray-600'}`}>
+                    {s.label}
+                  </span>
                 </div>
-                <span className={`text-xs font-medium ${s === step ? 'text-white' : 'text-gray-600'}`}>
-                  {s === 1 ? 'Tus datos' : 'Contraseña'}
-                </span>
-                {s < 2 && <div className="w-8 h-px bg-white/10" />}
+                {i < STEPS.length - 1 && (
+                  <div className={`w-8 h-px mb-4 transition-colors ${step > s.n ? 'bg-green-500' : 'bg-white/10'}`} />
+                )}
               </div>
             ))}
           </div>
 
-          {/* ── PASO 1 ── */}
+          {/* ── PASO 1: Tus datos ── */}
           <AnimatePresence mode="wait">
             {step === 1 && (
               <motion.div
@@ -317,7 +370,7 @@ export default function RegisterPage() {
               >
                 <div className="mb-7">
                   <h2 className="text-3xl font-black text-white mb-2 leading-tight">
-                    Crea tu<br />cuenta
+                    Tus datos
                   </h2>
                   <p className="text-gray-500 text-sm">
                     ¿Ya tienes cuenta?{' '}
@@ -354,12 +407,7 @@ export default function RegisterPage() {
                     </div>
                     <AnimatePresence>
                       {form1.formState.errors.full_name && (
-                        <motion.p
-                          initial={{ opacity: 0, y: -4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -4 }}
-                          className="text-xs text-red-400 pl-1"
-                        >
+                        <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-400 pl-1">
                           {form1.formState.errors.full_name.message}
                         </motion.p>
                       )}
@@ -391,13 +439,40 @@ export default function RegisterPage() {
                     </div>
                     <AnimatePresence>
                       {form1.formState.errors.email && (
-                        <motion.p
-                          initial={{ opacity: 0, y: -4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -4 }}
-                          className="text-xs text-red-400 pl-1"
-                        >
+                        <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-400 pl-1">
                           {form1.formState.errors.email.message}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Teléfono */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Teléfono
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
+                        <Phone size={16} />
+                      </div>
+                      <input
+                        type="tel"
+                        placeholder="52345678"
+                        autoComplete="tel"
+                        {...form1.register('phone')}
+                        className={`w-full bg-white/5 border rounded-xl pl-10 pr-4 py-3.5 text-white text-sm placeholder-gray-600 outline-none transition-all duration-200 ${
+                          form1.formState.errors.phone
+                            ? 'border-red-500/50 focus:border-red-400 focus:ring-2 focus:ring-red-500/20'
+                            : form1.formState.dirtyFields.phone && !form1.formState.errors.phone
+                            ? 'border-green-500/50 focus:border-green-400 focus:ring-2 focus:ring-green-500/20'
+                            : 'border-white/10 focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/15'
+                        }`}
+                      />
+                    </div>
+                    <AnimatePresence>
+                      {form1.formState.errors.phone && (
+                        <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-400 pl-1">
+                          {form1.formState.errors.phone.message}
                         </motion.p>
                       )}
                     </AnimatePresence>
@@ -416,7 +491,7 @@ export default function RegisterPage() {
               </motion.div>
             )}
 
-            {/* ── PASO 2 ── */}
+            {/* ── PASO 2: Tu dirección ── */}
             {step === 2 && (
               <motion.div
                 key="step2"
@@ -427,14 +502,144 @@ export default function RegisterPage() {
               >
                 <div className="mb-7">
                   <h2 className="text-3xl font-black text-white mb-2 leading-tight">
-                    Elige tu<br />contraseña
+                    Tu dirección
                   </h2>
-                  <p className="text-gray-500 text-sm">Que sea segura y fácil de recordar.</p>
+                  <p className="text-gray-500 text-sm">Necesitamos saber dónde entregarte tus pedidos.</p>
                 </div>
 
                 <form onSubmit={form2.handleSubmit(onStep2)} className="space-y-5">
 
-                  {/* Campo de contraseña */}
+                  {/* Provincia */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Provincia
+                    </label>
+                    <div className="relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+                        <MapPin size={16} />
+                      </div>
+                      <select
+                        {...form2.register('province', {
+                          onChange: () => form2.setValue('municipality', '')
+                        })}
+                        className={`w-full bg-white/5 border rounded-xl pl-10 pr-4 py-3.5 text-sm outline-none transition-all duration-200 appearance-none cursor-pointer ${
+                          form2.formState.errors.province
+                            ? 'border-red-500/50 text-white'
+                            : 'border-white/10 focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/15 text-white'
+                        }`}
+                        style={{ colorScheme: 'dark' }}
+                      >
+                        <option value="" className="bg-gray-900 text-gray-400">Selecciona una provincia</option>
+                        {PROVINCES.map(p => (
+                          <option key={p} value={p} className="bg-gray-900 text-white">{p}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <AnimatePresence>
+                      {form2.formState.errors.province && (
+                        <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-400 pl-1">
+                          {form2.formState.errors.province.message}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Municipio */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Municipio
+                    </label>
+                    <select
+                      {...form2.register('municipality')}
+                      disabled={!selectedProvince}
+                      className={`w-full bg-white/5 border rounded-xl px-4 py-3.5 text-sm outline-none transition-all duration-200 appearance-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                        form2.formState.errors.municipality
+                          ? 'border-red-500/50 text-white'
+                          : 'border-white/10 focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/15 text-white'
+                      }`}
+                      style={{ colorScheme: 'dark' }}
+                    >
+                      <option value="" className="bg-gray-900 text-gray-400">Selecciona un municipio</option>
+                      {getMunicipalities(selectedProvince).map(m => (
+                        <option key={m} value={m} className="bg-gray-900 text-white">{m}</option>
+                      ))}
+                    </select>
+                    <AnimatePresence>
+                      {form2.formState.errors.municipality && (
+                        <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-400 pl-1">
+                          {form2.formState.errors.municipality.message}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Dirección exacta */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Dirección exacta
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="Calle, número, entre calles, reparto..."
+                      {...form2.register('address')}
+                      className={`w-full bg-white/5 border rounded-xl px-4 py-3.5 text-white text-sm placeholder-gray-600 outline-none transition-all duration-200 resize-none ${
+                        form2.formState.errors.address
+                          ? 'border-red-500/50 focus:border-red-400 focus:ring-2 focus:ring-red-500/20'
+                          : 'border-white/10 focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/15'
+                      }`}
+                    />
+                    <AnimatePresence>
+                      {form2.formState.errors.address && (
+                        <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-400 pl-1">
+                          {form2.formState.errors.address.message}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  <div className="flex gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setStep(1)}
+                      className="flex items-center gap-2 px-4 py-4 rounded-xl border border-white/10 text-gray-400 hover:text-white hover:border-white/20 transition-all duration-200 text-sm font-medium"
+                    >
+                      <ArrowLeft size={16} />
+                      Volver
+                    </button>
+
+                    <motion.button
+                      type="submit"
+                      whileTap={{ scale: 0.98 }}
+                      className="relative flex-1 overflow-hidden bg-orange-500 hover:bg-orange-400 text-white font-bold py-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25 group"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                      <span>Continuar</span>
+                      <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                    </motion.button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+
+            {/* ── PASO 3: Contraseña ── */}
+            {step === 3 && (
+              <motion.div
+                key="step3"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25 }}
+              >
+                <div className="mb-7">
+                  <h2 className="text-3xl font-black text-white mb-2 leading-tight">
+                    Contraseña
+                  </h2>
+                  <p className="text-gray-500 text-sm">Que sea segura y fácil de recordar.</p>
+                </div>
+
+                <form onSubmit={form3.handleSubmit(onStep3)} className="space-y-5">
+
+                  {/* Campo contraseña */}
                   <div className="space-y-2">
                     <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                       Contraseña
@@ -468,7 +673,7 @@ export default function RegisterPage() {
                       </button>
                     </div>
 
-                    {/* Barra de fortaleza animada */}
+                    {/* Barra de fortaleza */}
                     <AnimatePresence>
                       {passwordVal.length > 0 && (
                         <motion.div
@@ -477,7 +682,6 @@ export default function RegisterPage() {
                           exit={{ opacity: 0, height: 0 }}
                           className="space-y-2 overflow-hidden"
                         >
-                          {/* Barras segmentadas */}
                           <div className="flex gap-1 mt-1">
                             {[1, 2, 3, 4, 5].map(segment => (
                               <div key={segment} className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
@@ -490,34 +694,19 @@ export default function RegisterPage() {
                               </div>
                             ))}
                           </div>
-
-                          {/* Label de fortaleza */}
                           <div className="flex items-center justify-between">
-                            <motion.span
-                              key={strength.label}
-                              initial={{ opacity: 0, y: 4 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className={`text-xs font-bold ${strength.color}`}
-                            >
+                            <motion.span key={strength.label} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className={`text-xs font-bold ${strength.color}`}>
                               {strength.label}
                             </motion.span>
                             <span className="text-gray-600 text-xs">{strength.score}/5</span>
                           </div>
-
-                          {/* Requisitos */}
                           <div className="grid grid-cols-2 gap-1 mt-1">
                             {requirements.map(({ met, label }) => (
-                              <motion.div
-                                key={label}
-                                className="flex items-center gap-1.5"
-                                animate={{ opacity: met ? 1 : 0.5 }}
-                              >
+                              <motion.div key={label} className="flex items-center gap-1.5" animate={{ opacity: met ? 1 : 0.5 }}>
                                 <motion.div
                                   animate={{ scale: met ? [1, 1.3, 1] : 1 }}
                                   transition={{ duration: 0.2 }}
-                                  className={`w-3.5 h-3.5 rounded-full flex items-center justify-center flex-shrink-0 transition-colors duration-200 ${
-                                    met ? 'bg-green-500' : 'bg-white/10'
-                                  }`}
+                                  className={`w-3.5 h-3.5 rounded-full flex items-center justify-center flex-shrink-0 transition-colors duration-200 ${met ? 'bg-green-500' : 'bg-white/10'}`}
                                 >
                                   {met && (
                                     <svg width="7" height="5" viewBox="0 0 7 5" fill="none">
@@ -525,9 +714,7 @@ export default function RegisterPage() {
                                     </svg>
                                   )}
                                 </motion.div>
-                                <span className={`text-[10px] transition-colors duration-200 ${met ? 'text-gray-300' : 'text-gray-600'}`}>
-                                  {label}
-                                </span>
+                                <span className={`text-[10px] transition-colors duration-200 ${met ? 'text-gray-300' : 'text-gray-600'}`}>{label}</span>
                               </motion.div>
                             ))}
                           </div>
@@ -536,7 +723,7 @@ export default function RegisterPage() {
                     </AnimatePresence>
                   </div>
 
-                  {/* Campo confirmar contraseña */}
+                  {/* Confirmar contraseña */}
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                       Confirmar contraseña
@@ -567,7 +754,7 @@ export default function RegisterPage() {
                         {showConf ? <EyeOff size={17} /> : <Eye size={17} />}
                       </button>
 
-                      {/* Ícono de match animado */}
+                      {/* Ícono de match — sin SVG directo del lucide que incluía el círculo */}
                       <AnimatePresence>
                         {passwordsMatch && (
                           <motion.div
@@ -575,15 +762,17 @@ export default function RegisterPage() {
                             animate={{ opacity: 1, scale: 1, rotate: 0 }}
                             exit={{ opacity: 0, scale: 0 }}
                             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                            className="absolute right-10 top-1/2 -translate-y-1/2"
+                            className="absolute right-10 top-1/2 -translate-y-1/2 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center"
                           >
-                            <CheckCircle2 size={18} className="text-green-400" />
+                            <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                              <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
                           </motion.div>
                         )}
                       </AnimatePresence>
                     </div>
 
-                    {/* Partículas de celebración */}
+                    {/* Partículas */}
                     <div className="relative h-0 overflow-visible">
                       <AnimatePresence>
                         {particles.map(p => (
@@ -592,7 +781,6 @@ export default function RegisterPage() {
                       </AnimatePresence>
                     </div>
 
-                    {/* Mensaje de coincidencia */}
                     <AnimatePresence>
                       {confirmVal.length > 0 && (
                         <motion.p
@@ -610,7 +798,7 @@ export default function RegisterPage() {
                   <div className="flex gap-3 mt-2">
                     <button
                       type="button"
-                      onClick={() => setStep(1)}
+                      onClick={() => setStep(2)}
                       className="flex items-center gap-2 px-4 py-4 rounded-xl border border-white/10 text-gray-400 hover:text-white hover:border-white/20 transition-all duration-200 text-sm font-medium"
                     >
                       <ArrowLeft size={16} />
@@ -626,11 +814,7 @@ export default function RegisterPage() {
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                       {loading ? (
                         <>
-                          <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
-                            className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
-                          />
+                          <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }} className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
                           <span>Creando...</span>
                         </>
                       ) : (
