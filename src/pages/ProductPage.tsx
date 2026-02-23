@@ -428,7 +428,7 @@ export default function ProductPage() {
 
       {/* ── Productos relacionados ──────────────────────────────── */}
       {/* Se muestra mientras carga (skeleton) O cuando hay resultados */}
-      {(loadingRelated || related.length > 0) && (
+      {!loading && (loadingRelated || related.length > 0) && (
         <section>
           <div className="flex items-end justify-between mb-6">
             <div>

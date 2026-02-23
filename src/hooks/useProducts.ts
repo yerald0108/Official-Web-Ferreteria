@@ -128,7 +128,6 @@ export function useProduct(id: string) {
 }
 
 // Hook para productos relacionados
-// Hook para productos relacionados
 export function useRelatedProducts(categoryId: string | null, excludeId: string) {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading]   = useState(true)
