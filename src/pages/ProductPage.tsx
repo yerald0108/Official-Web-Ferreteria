@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  ArrowLeft, ShoppingCart, Package, Tag,
+  ArrowLeft, ShoppingCart, Tag,
   CheckCircle, AlertCircle, Minus, Plus, ChevronRight, Share2, Heart
 } from 'lucide-react'
 import { useProduct, useRelatedProducts } from '../hooks/useProducts'
@@ -12,6 +12,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useWishlist } from '../hooks/useWishlist'
 import ProductCard from '../components/products/ProductCard'
 import ProductReviews from '../components/products/ProductReviews'
+import ProductImage from '../components/ui/ProductImage'
 import ErrorState from '../components/ui/ErrorState'
 import { sileo } from 'sileo'
 
@@ -190,26 +191,20 @@ export default function ProductPage() {
       {/* Contenido principal */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
 
-        {/* Imagen */}
+        {/* ── Imagen ─────────────────────────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4 }}
           className="relative"
         >
-          <div className="aspect-square bg-gray-50 dark:bg-gray-900 rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-800">
-            {product.image_url ? (
-              <img
-                src={product.image_url}
-                alt={product.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-gray-200 dark:text-gray-700 gap-3">
-                <Package size={64} strokeWidth={1} />
-                <p className="text-sm text-gray-300">Sin imagen</p>
-              </div>
-            )}
+          {/* Contenedor con aspect-square y overflow hidden para que
+              ProductImage ocupe todo el espacio disponible */}
+          <div className="relative aspect-square bg-gray-50 dark:bg-gray-900 rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-800">
+            <ProductImage
+              src={product.image_url}
+              alt={product.name}
+            />
 
             {outOfStock && (
               <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-3xl">
@@ -234,7 +229,6 @@ export default function ProductPage() {
 
           {/* Botones flotantes derecha */}
           <div className="absolute top-4 right-4 flex flex-col gap-2">
-            {/* Compartir */}
             <button
               onClick={handleShare}
               className="w-9 h-9 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-full flex items-center justify-center text-gray-500 hover:text-orange-500 hover:border-orange-300 transition-all shadow-sm"
@@ -242,7 +236,6 @@ export default function ProductPage() {
               <Share2 size={15} />
             </button>
 
-            {/* Corazón */}
             <button
               onClick={handleWishlist}
               className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm border ${
@@ -379,8 +372,7 @@ export default function ProductPage() {
                 )}
               </AnimatePresence>
             </motion.button>
-            
-            {/* Botón favoritos */}
+
             <button
               onClick={handleWishlist}
               className={`flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl text-sm font-bold transition-all border-2 ${
@@ -422,12 +414,9 @@ export default function ProductPage() {
       </div>
 
       {/* ── Reseñas y valoraciones ─────────────────────────────────── */}
-      {/* FIX: Movido fuera del bloque condicional de relacionados para que
-           siempre se renderice independientemente de si hay productos relacionados */}
       <ProductReviews productId={product.id} />
 
       {/* ── Productos relacionados ──────────────────────────────── */}
-      {/* Se muestra mientras carga (skeleton) O cuando hay resultados */}
       {!loading && (loadingRelated || related.length > 0) && (
         <section>
           <div className="flex items-end justify-between mb-6">
@@ -439,7 +428,6 @@ export default function ProductPage() {
                 Productos relacionados
               </h2>
             </div>
-            {/* El link solo aparece cuando los datos ya cargaron */}
             {!loadingRelated && (
               <Link
                 to={`/catalog?category=${product.category?.slug}`}
@@ -450,7 +438,6 @@ export default function ProductPage() {
             )}
           </div>
 
-          {/* Skeleton mientras carga, grid real cuando termina */}
           {loadingRelated ? (
             <RelatedSkeleton />
           ) : (

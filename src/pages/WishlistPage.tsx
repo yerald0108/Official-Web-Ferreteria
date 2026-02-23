@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Heart, ShoppingCart, Package, Trash2, ArrowRight } from 'lucide-react'
+import { Heart, ShoppingCart, Trash2, ArrowRight } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useWishlist } from '../hooks/useWishlist'
 import { useCartStore } from '../store/cartStore'
+import ProductImage from '../components/ui/ProductImage'
 import { sileo } from 'sileo'
 
 // ── Skeleton ──────────────────────────────────────────────────────
@@ -86,7 +87,6 @@ export default function WishlistPage() {
           animate={{ opacity: 1, scale: 1 }}
           className="flex flex-col items-center justify-center py-24 text-center gap-5"
         >
-          {/* Icono animado */}
           <motion.div
             animate={{ scale: [1, 1.08, 1] }}
             transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
@@ -158,18 +158,7 @@ export default function WishlistPage() {
                   to={`/product/${item.product_id}`}
                   className="block relative h-48 bg-gray-100 dark:bg-gray-800 overflow-hidden"
                 >
-                  {product?.image_url ? (
-                    <img
-                      src={product.image_url}
-                      alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
-                      <Package size={40} strokeWidth={1} />
-                      <span className="text-xs mt-1">Sin imagen</span>
-                    </div>
-                  )}
+                  <ProductImage src={product?.image_url} alt={product?.name ?? 'Producto'} />
 
                   {outOfStock && (
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
@@ -185,7 +174,7 @@ export default function WishlistPage() {
                     </span>
                   )}
 
-                  {/* Botón eliminar favorito */}
+                  {/* Botón eliminar — aparece al hover */}
                   <button
                     onClick={(e) => {
                       e.preventDefault()
@@ -197,7 +186,7 @@ export default function WishlistPage() {
                     <Trash2 size={13} />
                   </button>
 
-                  {/* Corazón relleno — siempre visible */}
+                  {/* Corazón relleno — visible cuando no hay hover */}
                   <div className="absolute top-2 right-2 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white shadow-sm group-hover:opacity-0 transition-opacity duration-200">
                     <Heart size={13} fill="currentColor" />
                   </div>

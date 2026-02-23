@@ -1,10 +1,12 @@
-import { ShoppingCart, Package } from 'lucide-react'
+// src/components/product/ProductCard.tsx
+import { ShoppingCart } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { sileo } from 'sileo'
 import type { Product } from '../../types'
 import { useCartStore } from '../../store/cartStore'
 import { useProductRating } from '../../hooks/useReviews'
 import StarRating from '../ui/StarRating'
+import ProductImage from '../ui/ProductImage'
 
 interface Props {
   product: Product
@@ -40,21 +42,11 @@ export default function ProductCard({ product }: Props) {
 
   return (
     <div className="group bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden">
-      
+
       {/* Imagen — clickeable al detalle */}
       <Link to={`/product/${product.id}`} className="block relative h-48 bg-gray-100 dark:bg-gray-800 overflow-hidden">
-        {product.image_url ? (
-          <img
-            src={product.image_url}
-            alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
-            <Package size={40} strokeWidth={1} />
-            <span className="text-xs mt-1">Sin imagen</span>
-          </div>
-        )}
+        <ProductImage src={product.image_url} alt={product.name} />
+
         {outOfStock && (
           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
             <span className="bg-white text-gray-700 text-xs font-bold px-3 py-1 rounded-full">Agotado</span>
