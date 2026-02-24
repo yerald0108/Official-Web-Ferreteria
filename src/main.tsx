@@ -4,17 +4,6 @@ import './index.css'
 import App from './App.tsx'
 import { AuthProvider } from './hooks/useAuth'
 
-// Aplicar tema guardado antes de renderizar
-const savedTheme = localStorage.getItem('ferreteria-theme')
-if (savedTheme) {
-  try {
-    const parsed = JSON.parse(savedTheme)
-    if (parsed?.state?.isDark) {
-      document.documentElement.classList.add('dark')
-    }
-  } catch {}
-}
-
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AuthProvider>

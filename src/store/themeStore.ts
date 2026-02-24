@@ -6,6 +6,11 @@ interface ThemeStore {
   toggle: () => void
 }
 
+function applyTheme(isDark: boolean) {
+  if (isDark) document.documentElement.classList.add('dark')
+  else document.documentElement.classList.remove('dark')
+}
+
 export const useThemeStore = create<ThemeStore>()(
   persist(
     (set, get) => ({
@@ -13,10 +18,14 @@ export const useThemeStore = create<ThemeStore>()(
       toggle: () => {
         const next = !get().isDark
         set({ isDark: next })
-        if (next) document.documentElement.classList.add('dark')
-        else document.documentElement.classList.remove('dark')
+        applyTheme(next)
       },
     }),
-    { name: 'ferreteria-theme' }
+    {
+      name: 'ferreteria-theme',
+      onRehydrateStorage: () => (state) => {
+        if (state) applyTheme(state.isDark)
+      },
+    }
   )
 )
