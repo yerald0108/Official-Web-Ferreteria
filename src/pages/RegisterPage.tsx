@@ -15,7 +15,9 @@ import TermsModal from './TermsModal'
 const step1Schema = z.object({
   full_name: z.string().min(2, 'Mínimo 2 caracteres'),
   email:     z.string().email('Correo inválido'),
-  phone:     z.string().min(8, 'Teléfono inválido').regex(/^\d+$/, 'Solo números'),
+  phone:     z.string()
+    .length(8, 'Teléfono debe tener 8 dígitos')
+    .min(8, 'Teléfono inválido').regex(/^\d+$/, 'Solo números'),
 })
 
 const step2Schema = z.object({
