@@ -8,6 +8,7 @@ import { Wrench, Eye, EyeOff, ArrowRight, Mail, Lock, ShieldCheck, Sun, Moon } f
 import { supabase } from '../lib/supabase'
 import { sileo } from 'sileo'
 import { useThemeStore } from '../store/themeStore'
+import TermsModal from './TermsModal'
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 const loginSchema = z.object({
@@ -19,10 +20,23 @@ type LoginData = z.infer<typeof loginSchema>
 
 // ── Input helper ──────────────────────────────────────────────────────────────
 function inputCls(hasError: boolean, isDirtyValid = false) {
-  const base = 'w-full bg-white/5 border rounded-xl px-4 py-3.5 text-white text-sm placeholder-gray-600 outline-none transition-all duration-200 focus:bg-white/8'
-  if (hasError)     return `${base} border-red-500/50 focus:border-red-400 focus:ring-2 focus:ring-red-500/20`
-  if (isDirtyValid) return `${base} border-green-500/50 focus:border-green-400 focus:ring-2 focus:ring-green-500/20`
-  return `${base} border-white/10 focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/15`
+  const base =
+    'w-full ' +
+    // Fondo: blanco en claro, semitransparente en oscuro
+    'bg-white dark:bg-white/5 ' +
+    // Borde base
+    'border ' +
+    // Texto
+    'text-gray-900 dark:text-white text-sm ' +
+    // Placeholder
+    'placeholder-gray-400 dark:placeholder-gray-500 ' +
+    'rounded-xl px-4 py-3.5 outline-none transition-all duration-200'
+
+  if (hasError)
+    return `${base} border-red-400 dark:border-red-500/50 focus:border-red-500 focus:ring-2 focus:ring-red-500/20`
+  if (isDirtyValid)
+    return `${base} border-green-400 dark:border-green-500/50 focus:border-green-500 focus:ring-2 focus:ring-green-500/20`
+  return `${base} border-gray-200 dark:border-white/10 focus:border-orange-500 dark:focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/20 dark:focus:ring-orange-500/15`
 }
 
 export default function LoginPage() {
@@ -32,6 +46,7 @@ export default function LoginPage() {
   const [loading,  setLoading]  = useState(false)
   const [mounted,  setMounted]  = useState(false)
   const [showPass, setShowPass] = useState(false)
+  const [termsOpen, setTermsOpen]       = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -57,7 +72,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 flex overflow-hidden">
+    // Fondo raíz: gris claro en light, muy oscuro en dark
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-950 flex overflow-hidden transition-colors duration-300">
+
+      <TermsModal open={termsOpen} onClose={() => setTermsOpen(false)} />
 
       {/* ── Panel izquierdo ── */}
       <div className="hidden lg:flex flex-col w-[48%] relative bg-gradient-to-br from-gray-900 via-gray-950 to-black p-12 overflow-hidden">
@@ -159,20 +177,28 @@ export default function LoginPage() {
 
       {/* ── Panel derecho — formulario ── */}
       <div className="flex-1 flex flex-col items-center justify-center p-8 relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-gray-900 to-gray-950" />
+        {/* Fondo del panel: blanco en light, gris oscuro en dark */}
+        <div className="absolute inset-0 bg-white dark:bg-gray-900 transition-colors duration-300" />
 
-        {/* Botón de tema — esquina superior derecha */}
+        {/* Botón de tema */}
         <motion.button
           initial={{ opacity: 0, scale: 0.8 }}
           animate={mounted ? { opacity: 1, scale: 1 } : {}}
           transition={{ duration: 0.4, delay: 0.2 }}
           onClick={toggle}
-          className="absolute top-5 right-5 z-20 w-10 h-10 rounded-xl bg-white/8 border border-white/10 hover:bg-white/15 hover:border-white/20 flex items-center justify-center transition-all duration-200"
+          className={`
+            absolute top-5 right-5 z-20 w-10 h-10 rounded-xl flex items-center justify-center
+            transition-all duration-200 border
+            ${isDark
+              ? 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+              : 'bg-gray-100 border-gray-200 hover:bg-gray-200 hover:border-gray-300'
+            }
+          `}
           title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
         >
           {isDark
-            ? <Moon size={17} className="text-indigo-400" />
-            : <Sun  size={17} className="text-amber-400"  />
+            ? <Sun  size={17} className="text-amber-400" />
+            : <Moon size={17} className="text-indigo-500" />
           }
         </motion.button>
 
@@ -188,17 +214,17 @@ export default function LoginPage() {
             <div className="w-9 h-9 bg-orange-500 rounded-xl flex items-center justify-center">
               <Wrench className="text-white" size={18} />
             </div>
-            <span className="text-white font-bold">Ferretería Online</span>
+            <span className="text-gray-900 dark:text-white font-bold">Ferretería Online</span>
           </div>
 
           {/* Encabezado */}
           <div className="mb-8">
-            <h2 className="text-3xl font-black text-white mb-2 leading-tight">
+            <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-2 leading-tight transition-colors duration-300">
               Iniciar sesión
             </h2>
-            <p className="text-gray-500 text-sm">
+            <p className="text-gray-500 dark:text-gray-400 text-sm">
               ¿No tienes cuenta?{' '}
-              <Link to="/register" className="text-orange-400 font-semibold hover:text-orange-300 transition-colors">
+              <Link to="/register" className="text-orange-500 dark:text-orange-400 font-semibold hover:text-orange-600 dark:hover:text-orange-300 transition-colors">
                 Regístrate gratis
               </Link>
             </p>
@@ -209,9 +235,11 @@ export default function LoginPage() {
 
             {/* Email */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Correo electrónico</label>
+              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                Correo electrónico
+              </label>
               <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none">
                   <Mail size={16} />
                 </div>
                 <input
@@ -224,7 +252,7 @@ export default function LoginPage() {
               </div>
               <AnimatePresence>
                 {errors.email && (
-                  <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-400 pl-1">
+                  <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-500 dark:text-red-400 pl-1">
                     {errors.email.message}
                   </motion.p>
                 )}
@@ -234,13 +262,15 @@ export default function LoginPage() {
             {/* Contraseña */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Contraseña</label>
-                <Link to="/forgot-password" className="text-xs text-orange-400 hover:text-orange-300 transition-colors font-medium">
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Contraseña
+                </label>
+                <Link to="/forgot-password" className="text-xs text-orange-500 dark:text-orange-400 hover:text-orange-600 dark:hover:text-orange-300 transition-colors font-medium">
                   ¿Olvidaste tu contraseña?
                 </Link>
               </div>
               <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none">
                   <Lock size={16} />
                 </div>
                 <input
@@ -253,14 +283,14 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPass(v => !v)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                 >
                   {showPass ? <EyeOff size={17} /> : <Eye size={17} />}
                 </button>
               </div>
               <AnimatePresence>
                 {errors.password && (
-                  <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-400 pl-1">
+                  <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-500 dark:text-red-400 pl-1">
                     {errors.password.message}
                   </motion.p>
                 )}
@@ -292,6 +322,20 @@ export default function LoginPage() {
               )}
             </motion.button>
           </form>
+
+          {/* Separador y opciones extra */}
+          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-white/10 text-center">
+            <p className="text-xs text-gray-400 dark:text-gray-500">
+              Al continuar aceptas nuestros{' '}
+              <button
+                type="button"
+                onClick={() => setTermsOpen(true)}
+                className="text-orange-500 dark:text-orange-400 hover:underline focus:outline-none"
+              >
+                Términos de uso
+              </button>
+              </p>
+          </div>
         </motion.div>
       </div>
     </div>

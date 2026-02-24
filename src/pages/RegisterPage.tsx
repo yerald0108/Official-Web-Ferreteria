@@ -4,11 +4,12 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Wrench, Eye, EyeOff, ArrowRight, ArrowLeft, User, Mail, Lock, Phone, CheckCircle2, ShieldCheck, MapPin, Sun, Moon } from 'lucide-react'
+import { Wrench, Eye, EyeOff, ArrowRight, ArrowLeft, User, Mail, Lock, Phone, ShieldCheck, MapPin, Sun, Moon } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { sileo } from 'sileo'
 import { useThemeStore } from '../store/themeStore'
 import { PROVINCES, getMunicipalities } from '../utils/cuba'
+import TermsModal from './TermsModal'
 
 // ── Schemas por paso ──────────────────────────────────────────────────────────
 const step1Schema = z.object({
@@ -50,11 +51,25 @@ function evaluateStrength(password: string): Strength {
   if (/[0-9]/.test(password))                 score++
   if (/[^A-Za-z0-9]/.test(password))          score++
 
-  if (score <= 1) return { score, label: 'Muy débil',  color: 'text-red-400',    barColor: 'bg-red-500' }
-  if (score === 2) return { score, label: 'Débil',      color: 'text-orange-400', barColor: 'bg-orange-500' }
-  if (score === 3) return { score, label: 'Regular',    color: 'text-yellow-400', barColor: 'bg-yellow-400' }
-  if (score === 4) return { score, label: 'Fuerte',     color: 'text-lime-400',   barColor: 'bg-lime-500' }
-  return               { score, label: '¡Excelente!', color: 'text-green-400',  barColor: 'bg-green-500' }
+  if (score <= 1) return { score, label: 'Muy débil',  color: 'text-red-500',    barColor: 'bg-red-500' }
+  if (score === 2) return { score, label: 'Débil',      color: 'text-orange-500', barColor: 'bg-orange-500' }
+  if (score === 3) return { score, label: 'Regular',    color: 'text-yellow-500', barColor: 'bg-yellow-400' }
+  if (score === 4) return { score, label: 'Fuerte',     color: 'text-lime-500',   barColor: 'bg-lime-500' }
+  return               { score, label: '¡Excelente!', color: 'text-green-500',  barColor: 'bg-green-500' }
+}
+
+// ── Clases de input adaptadas a light/dark ────────────────────────────────────
+function inputCls(state: 'error' | 'valid' | 'normal') {
+  const base =
+    'w-full bg-white dark:bg-white/5 border rounded-xl px-4 py-3.5 ' +
+    'text-gray-900 dark:text-white text-sm ' +
+    'placeholder-gray-400 dark:placeholder-gray-500 ' +
+    'outline-none transition-all duration-200'
+  if (state === 'error')
+    return `${base} border-red-400 dark:border-red-500/50 focus:border-red-500 focus:ring-2 focus:ring-red-500/20`
+  if (state === 'valid')
+    return `${base} border-green-400 dark:border-green-500/50 focus:border-green-500 focus:ring-2 focus:ring-green-500/20`
+  return `${base} border-gray-200 dark:border-white/10 focus:border-orange-500 dark:focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/20 dark:focus:ring-orange-500/15`
 }
 
 // ── Partícula de celebración ──────────────────────────────────────────────────
@@ -90,6 +105,8 @@ export default function RegisterPage() {
 
   const [step1Data, setStep1Data] = useState<Step1Data | null>(null)
   const [step2Data, setStep2Data] = useState<Step2Data | null>(null)
+  const [termsOpen, setTermsOpen]       = useState(false)
+  const [termsAccepted, setTermsAccepted] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -189,17 +206,26 @@ export default function RegisterPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-950 flex overflow-hidden">
+    // Fondo raíz: gris claro en light, muy oscuro en dark
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-950 flex overflow-hidden transition-colors duration-300">
+      <TermsModal open={termsOpen} onClose={() => setTermsOpen(false)} />
 
       {/* ── Botón tema — esquina superior derecha ── */}
       <button
         onClick={toggle}
-        className="fixed top-4 right-4 z-50 w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 flex items-center justify-center text-gray-300 hover:text-white transition-all backdrop-blur-sm"
+        className={`
+          fixed top-4 right-4 z-50 w-10 h-10 rounded-xl flex items-center justify-center
+          transition-all duration-200 border backdrop-blur-sm
+          ${isDark
+            ? 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+            : 'bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300 shadow-sm'
+          }
+        `}
         title={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
       >
         {isDark
-          ? <Sun size={17} className="text-amber-400" />
-          : <Moon size={17} className="text-indigo-400" />
+          ? <Sun  size={17} className="text-amber-400" />
+          : <Moon size={17} className="text-indigo-500" />
         }
       </button>
 
@@ -312,7 +338,8 @@ export default function RegisterPage() {
 
       {/* ── Panel derecho — formulario ── */}
       <div className="flex-1 flex flex-col items-center justify-center p-8 relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-gray-900 to-gray-950" />
+        {/* Fondo del panel: blanco en light, gris oscuro en dark */}
+        <div className="absolute inset-0 bg-white dark:bg-gray-900 transition-colors duration-300" />
 
         <motion.div
           initial={{ opacity: 0, y: 24 }}
@@ -326,7 +353,7 @@ export default function RegisterPage() {
             <div className="w-9 h-9 bg-orange-500 rounded-xl flex items-center justify-center">
               <Wrench className="text-white" size={18} />
             </div>
-            <span className="text-white font-bold">Ferretería Online</span>
+            <span className="text-gray-900 dark:text-white font-bold">Ferretería Online</span>
           </div>
 
           {/* Indicador de pasos */}
@@ -339,7 +366,7 @@ export default function RegisterPage() {
                       ? 'bg-green-500 text-white'
                       : s.n === step
                       ? 'bg-orange-500 text-white ring-4 ring-orange-500/20'
-                      : 'bg-white/10 text-gray-500'
+                      : 'bg-gray-200 dark:bg-white/10 text-gray-400 dark:text-gray-500'
                   }`}>
                     {s.n < step ? (
                       <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
@@ -347,12 +374,12 @@ export default function RegisterPage() {
                       </svg>
                     ) : s.n}
                   </div>
-                  <span className={`text-[10px] font-medium whitespace-nowrap ${s.n === step ? 'text-white' : 'text-gray-600'}`}>
+                  <span className={`text-[10px] font-medium whitespace-nowrap ${s.n === step ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-gray-600'}`}>
                     {s.label}
                   </span>
                 </div>
                 {i < STEPS.length - 1 && (
-                  <div className={`w-8 h-px mb-4 transition-colors ${step > s.n ? 'bg-green-500' : 'bg-white/10'}`} />
+                  <div className={`w-8 h-px mb-4 transition-colors ${step > s.n ? 'bg-green-500' : 'bg-gray-200 dark:bg-white/10'}`} />
                 )}
               </div>
             ))}
@@ -369,12 +396,12 @@ export default function RegisterPage() {
                 transition={{ duration: 0.25 }}
               >
                 <div className="mb-7">
-                  <h2 className="text-3xl font-black text-white mb-2 leading-tight">
+                  <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-2 leading-tight transition-colors duration-300">
                     Tus datos
                   </h2>
-                  <p className="text-gray-500 text-sm">
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">
                     ¿Ya tienes cuenta?{' '}
-                    <Link to="/login" className="text-orange-400 font-semibold hover:text-orange-300 transition-colors">
+                    <Link to="/login" className="text-orange-500 dark:text-orange-400 font-semibold hover:text-orange-600 dark:hover:text-orange-300 transition-colors">
                       Inicia sesión
                     </Link>
                   </p>
@@ -384,11 +411,11 @@ export default function RegisterPage() {
 
                   {/* Nombre */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Nombre completo
                     </label>
                     <div className="relative">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
                         <User size={16} />
                       </div>
                       <input
@@ -396,18 +423,16 @@ export default function RegisterPage() {
                         placeholder="Juan García"
                         autoComplete="name"
                         {...form1.register('full_name')}
-                        className={`w-full bg-white/5 border rounded-xl pl-10 pr-4 py-3.5 text-white text-sm placeholder-gray-600 outline-none transition-all duration-200 ${
-                          form1.formState.errors.full_name
-                            ? 'border-red-500/50 focus:border-red-400 focus:ring-2 focus:ring-red-500/20'
-                            : form1.formState.dirtyFields.full_name && !form1.formState.errors.full_name
-                            ? 'border-green-500/50 focus:border-green-400 focus:ring-2 focus:ring-green-500/20'
-                            : 'border-white/10 focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/15'
-                        }`}
+                        className={`${inputCls(
+                          form1.formState.errors.full_name ? 'error'
+                          : form1.formState.dirtyFields.full_name && !form1.formState.errors.full_name ? 'valid'
+                          : 'normal'
+                        )} pl-10`}
                       />
                     </div>
                     <AnimatePresence>
                       {form1.formState.errors.full_name && (
-                        <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-400 pl-1">
+                        <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-500 dark:text-red-400 pl-1">
                           {form1.formState.errors.full_name.message}
                         </motion.p>
                       )}
@@ -416,11 +441,11 @@ export default function RegisterPage() {
 
                   {/* Email */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Correo electrónico
                     </label>
                     <div className="relative">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
                         <Mail size={16} />
                       </div>
                       <input
@@ -428,18 +453,16 @@ export default function RegisterPage() {
                         placeholder="tucorreo@ejemplo.com"
                         autoComplete="email"
                         {...form1.register('email')}
-                        className={`w-full bg-white/5 border rounded-xl pl-10 pr-4 py-3.5 text-white text-sm placeholder-gray-600 outline-none transition-all duration-200 ${
-                          form1.formState.errors.email
-                            ? 'border-red-500/50 focus:border-red-400 focus:ring-2 focus:ring-red-500/20'
-                            : form1.formState.dirtyFields.email && !form1.formState.errors.email
-                            ? 'border-green-500/50 focus:border-green-400 focus:ring-2 focus:ring-green-500/20'
-                            : 'border-white/10 focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/15'
-                        }`}
+                        className={`${inputCls(
+                          form1.formState.errors.email ? 'error'
+                          : form1.formState.dirtyFields.email && !form1.formState.errors.email ? 'valid'
+                          : 'normal'
+                        )} pl-10`}
                       />
                     </div>
                     <AnimatePresence>
                       {form1.formState.errors.email && (
-                        <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-400 pl-1">
+                        <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-500 dark:text-red-400 pl-1">
                           {form1.formState.errors.email.message}
                         </motion.p>
                       )}
@@ -448,11 +471,11 @@ export default function RegisterPage() {
 
                   {/* Teléfono */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Teléfono
                     </label>
                     <div className="relative">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
                         <Phone size={16} />
                       </div>
                       <input
@@ -460,18 +483,16 @@ export default function RegisterPage() {
                         placeholder="52345678"
                         autoComplete="tel"
                         {...form1.register('phone')}
-                        className={`w-full bg-white/5 border rounded-xl pl-10 pr-4 py-3.5 text-white text-sm placeholder-gray-600 outline-none transition-all duration-200 ${
-                          form1.formState.errors.phone
-                            ? 'border-red-500/50 focus:border-red-400 focus:ring-2 focus:ring-red-500/20'
-                            : form1.formState.dirtyFields.phone && !form1.formState.errors.phone
-                            ? 'border-green-500/50 focus:border-green-400 focus:ring-2 focus:ring-green-500/20'
-                            : 'border-white/10 focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/15'
-                        }`}
+                        className={`${inputCls(
+                          form1.formState.errors.phone ? 'error'
+                          : form1.formState.dirtyFields.phone && !form1.formState.errors.phone ? 'valid'
+                          : 'normal'
+                        )} pl-10`}
                       />
                     </div>
                     <AnimatePresence>
                       {form1.formState.errors.phone && (
-                        <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-400 pl-1">
+                        <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-500 dark:text-red-400 pl-1">
                           {form1.formState.errors.phone.message}
                         </motion.p>
                       )}
@@ -501,43 +522,41 @@ export default function RegisterPage() {
                 transition={{ duration: 0.25 }}
               >
                 <div className="mb-7">
-                  <h2 className="text-3xl font-black text-white mb-2 leading-tight">
+                  <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-2 leading-tight transition-colors duration-300">
                     Tu dirección
                   </h2>
-                  <p className="text-gray-500 text-sm">Necesitamos saber dónde entregarte tus pedidos.</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">
+                    Necesitamos saber dónde entregarte tus pedidos.
+                  </p>
                 </div>
 
                 <form onSubmit={form2.handleSubmit(onStep2)} className="space-y-5">
 
                   {/* Provincia */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Provincia
                     </label>
                     <div className="relative">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none">
                         <MapPin size={16} />
                       </div>
                       <select
                         {...form2.register('province', {
                           onChange: () => form2.setValue('municipality', '')
                         })}
-                        className={`w-full bg-white/5 border rounded-xl pl-10 pr-4 py-3.5 text-sm outline-none transition-all duration-200 appearance-none cursor-pointer ${
-                          form2.formState.errors.province
-                            ? 'border-red-500/50 text-white'
-                            : 'border-white/10 focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/15 text-white'
-                        }`}
-                        style={{ colorScheme: 'dark' }}
+                        className={`${inputCls(form2.formState.errors.province ? 'error' : 'normal')} pl-10 appearance-none cursor-pointer text-gray-900 dark:text-white`}
+                        style={{ colorScheme: isDark ? 'dark' : 'light' }}
                       >
-                        <option value="" className="bg-gray-900 text-gray-400">Selecciona una provincia</option>
+                        <option value="" className="bg-white dark:bg-gray-900 text-gray-400">Selecciona una provincia</option>
                         {PROVINCES.map(p => (
-                          <option key={p} value={p} className="bg-gray-900 text-white">{p}</option>
+                          <option key={p} value={p} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">{p}</option>
                         ))}
                       </select>
                     </div>
                     <AnimatePresence>
                       {form2.formState.errors.province && (
-                        <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-400 pl-1">
+                        <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-500 dark:text-red-400 pl-1">
                           {form2.formState.errors.province.message}
                         </motion.p>
                       )}
@@ -546,27 +565,23 @@ export default function RegisterPage() {
 
                   {/* Municipio */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Municipio
                     </label>
                     <select
                       {...form2.register('municipality')}
                       disabled={!selectedProvince}
-                      className={`w-full bg-white/5 border rounded-xl px-4 py-3.5 text-sm outline-none transition-all duration-200 appearance-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-                        form2.formState.errors.municipality
-                          ? 'border-red-500/50 text-white'
-                          : 'border-white/10 focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/15 text-white'
-                      }`}
-                      style={{ colorScheme: 'dark' }}
+                      className={`${inputCls(form2.formState.errors.municipality ? 'error' : 'normal')} appearance-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-gray-900 dark:text-white`}
+                      style={{ colorScheme: isDark ? 'dark' : 'light' }}
                     >
-                      <option value="" className="bg-gray-900 text-gray-400">Selecciona un municipio</option>
+                      <option value="" className="bg-white dark:bg-gray-900 text-gray-400">Selecciona un municipio</option>
                       {getMunicipalities(selectedProvince).map(m => (
-                        <option key={m} value={m} className="bg-gray-900 text-white">{m}</option>
+                        <option key={m} value={m} className="bg-white dark:bg-gray-900 text-gray-900 dark:text-white">{m}</option>
                       ))}
                     </select>
                     <AnimatePresence>
                       {form2.formState.errors.municipality && (
-                        <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-400 pl-1">
+                        <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-500 dark:text-red-400 pl-1">
                           {form2.formState.errors.municipality.message}
                         </motion.p>
                       )}
@@ -575,22 +590,20 @@ export default function RegisterPage() {
 
                   {/* Dirección exacta */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Dirección exacta
                     </label>
                     <textarea
                       rows={2}
                       placeholder="Calle, número, entre calles, reparto..."
                       {...form2.register('address')}
-                      className={`w-full bg-white/5 border rounded-xl px-4 py-3.5 text-white text-sm placeholder-gray-600 outline-none transition-all duration-200 resize-none ${
-                        form2.formState.errors.address
-                          ? 'border-red-500/50 focus:border-red-400 focus:ring-2 focus:ring-red-500/20'
-                          : 'border-white/10 focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/15'
-                      }`}
+                      className={`${inputCls(
+                        form2.formState.errors.address ? 'error' : 'normal'
+                      )} resize-none`}
                     />
                     <AnimatePresence>
                       {form2.formState.errors.address && (
-                        <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-400 pl-1">
+                        <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} className="text-xs text-red-500 dark:text-red-400 pl-1">
                           {form2.formState.errors.address.message}
                         </motion.p>
                       )}
@@ -601,7 +614,7 @@ export default function RegisterPage() {
                     <button
                       type="button"
                       onClick={() => setStep(1)}
-                      className="flex items-center gap-2 px-4 py-4 rounded-xl border border-white/10 text-gray-400 hover:text-white hover:border-white/20 transition-all duration-200 text-sm font-medium"
+                      className="flex items-center gap-2 px-4 py-4 rounded-xl border border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 transition-all duration-200 text-sm font-medium"
                     >
                       <ArrowLeft size={16} />
                       Volver
@@ -631,21 +644,23 @@ export default function RegisterPage() {
                 transition={{ duration: 0.25 }}
               >
                 <div className="mb-7">
-                  <h2 className="text-3xl font-black text-white mb-2 leading-tight">
+                  <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-2 leading-tight transition-colors duration-300">
                     Contraseña
                   </h2>
-                  <p className="text-gray-500 text-sm">Que sea segura y fácil de recordar.</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">
+                    Que sea segura y fácil de recordar.
+                  </p>
                 </div>
 
                 <form onSubmit={form3.handleSubmit(onStep3)} className="space-y-5">
 
                   {/* Campo contraseña */}
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Contraseña
                     </label>
                     <div className="relative">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
                         <Lock size={16} />
                       </div>
                       <input
@@ -654,20 +669,18 @@ export default function RegisterPage() {
                         autoComplete="new-password"
                         value={passwordVal}
                         onChange={handlePasswordChange}
-                        className={`w-full bg-white/5 border rounded-xl pl-10 pr-12 py-3.5 text-white text-sm placeholder-gray-600 outline-none transition-all duration-200 ${
+                        className={`${inputCls(
                           passwordVal.length > 0
-                            ? strength.score >= 4
-                              ? 'border-green-500/50 focus:border-green-400 focus:ring-2 focus:ring-green-500/15'
-                              : strength.score >= 3
-                              ? 'border-yellow-500/40 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-500/15'
-                              : 'border-orange-500/40 focus:border-orange-400 focus:ring-2 focus:ring-orange-500/15'
-                            : 'border-white/10 focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/15'
-                        }`}
+                            ? strength.score >= 4 ? 'valid'
+                              : strength.score >= 2 ? 'normal'
+                              : 'error'
+                            : 'normal'
+                        )} pl-10 pr-12`}
                       />
                       <button
                         type="button"
                         onClick={() => setShowPass(v => !v)}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                       >
                         {showPass ? <EyeOff size={17} /> : <Eye size={17} />}
                       </button>
@@ -684,7 +697,7 @@ export default function RegisterPage() {
                         >
                           <div className="flex gap-1 mt-1">
                             {[1, 2, 3, 4, 5].map(segment => (
-                              <div key={segment} className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                              <div key={segment} className="flex-1 h-1.5 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden">
                                 <motion.div
                                   className={`h-full rounded-full ${strength.barColor}`}
                                   initial={{ width: 0 }}
@@ -698,7 +711,7 @@ export default function RegisterPage() {
                             <motion.span key={strength.label} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className={`text-xs font-bold ${strength.color}`}>
                               {strength.label}
                             </motion.span>
-                            <span className="text-gray-600 text-xs">{strength.score}/5</span>
+                            <span className="text-gray-400 dark:text-gray-600 text-xs">{strength.score}/5</span>
                           </div>
                           <div className="grid grid-cols-2 gap-1 mt-1">
                             {requirements.map(({ met, label }) => (
@@ -706,7 +719,7 @@ export default function RegisterPage() {
                                 <motion.div
                                   animate={{ scale: met ? [1, 1.3, 1] : 1 }}
                                   transition={{ duration: 0.2 }}
-                                  className={`w-3.5 h-3.5 rounded-full flex items-center justify-center flex-shrink-0 transition-colors duration-200 ${met ? 'bg-green-500' : 'bg-white/10'}`}
+                                  className={`w-3.5 h-3.5 rounded-full flex items-center justify-center flex-shrink-0 transition-colors duration-200 ${met ? 'bg-green-500' : 'bg-gray-200 dark:bg-white/10'}`}
                                 >
                                   {met && (
                                     <svg width="7" height="5" viewBox="0 0 7 5" fill="none">
@@ -714,7 +727,7 @@ export default function RegisterPage() {
                                     </svg>
                                   )}
                                 </motion.div>
-                                <span className={`text-[10px] transition-colors duration-200 ${met ? 'text-gray-300' : 'text-gray-600'}`}>{label}</span>
+                                <span className={`text-[10px] transition-colors duration-200 ${met ? 'text-gray-700 dark:text-gray-300' : 'text-gray-400 dark:text-gray-600'}`}>{label}</span>
                               </motion.div>
                             ))}
                           </div>
@@ -725,11 +738,11 @@ export default function RegisterPage() {
 
                   {/* Confirmar contraseña */}
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Confirmar contraseña
                     </label>
                     <div className="relative">
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
                         <Lock size={16} />
                       </div>
                       <input
@@ -738,23 +751,20 @@ export default function RegisterPage() {
                         autoComplete="new-password"
                         value={confirmVal}
                         onChange={handleConfirmChange}
-                        className={`w-full bg-white/5 border rounded-xl pl-10 pr-12 py-3.5 text-white text-sm placeholder-gray-600 outline-none transition-all duration-200 ${
+                        className={`${inputCls(
                           confirmVal.length > 0
-                            ? passwordsMatch
-                              ? 'border-green-500/60 focus:border-green-400 focus:ring-2 focus:ring-green-500/20'
-                              : 'border-red-500/40 focus:border-red-400 focus:ring-2 focus:ring-red-500/15'
-                            : 'border-white/10 focus:border-orange-500/60 focus:ring-2 focus:ring-orange-500/15'
-                        }`}
+                            ? passwordsMatch ? 'valid' : 'error'
+                            : 'normal'
+                        )} pl-10 pr-12`}
                       />
                       <button
                         type="button"
                         onClick={() => setShowConf(v => !v)}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                       >
                         {showConf ? <EyeOff size={17} /> : <Eye size={17} />}
                       </button>
 
-                      {/* Ícono de match — sin SVG directo del lucide que incluía el círculo */}
                       <AnimatePresence>
                         {passwordsMatch && (
                           <motion.div
@@ -787,9 +797,70 @@ export default function RegisterPage() {
                           initial={{ opacity: 0, y: -4 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -4 }}
-                          className={`text-xs pl-1 font-medium ${passwordsMatch ? 'text-green-400' : 'text-red-400'}`}
+                          className={`text-xs pl-1 font-medium ${passwordsMatch ? 'text-green-500 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}
                         >
                           {passwordsMatch ? '✓ ¡Contraseñas coinciden!' : '✗ Las contraseñas no coinciden'}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Checkbox de términos */}
+                  <div className="pt-1">
+                    <label className="flex items-start gap-3 cursor-pointer group">
+                      <div className="relative flex-shrink-0 mt-0.5">
+                        <input
+                          type="checkbox"
+                          checked={termsAccepted}
+                          onChange={e => setTermsAccepted(e.target.checked)}
+                          className="sr-only"
+                        />
+                        <motion.div
+                          animate={termsAccepted
+                            ? { backgroundColor: 'rgb(249 115 22)', borderColor: 'rgb(249 115 22)' }
+                            : { backgroundColor: 'transparent', borderColor: 'rgb(209 213 219)' }
+                          }
+                          className="w-5 h-5 rounded-md border-2 dark:border-white/20 flex items-center justify-center transition-colors duration-150"
+                          style={{ borderColor: termsAccepted ? 'rgb(249 115 22)' : undefined }}
+                        >
+                          <AnimatePresence>
+                            {termsAccepted && (
+                              <motion.svg
+                                key="check"
+                                initial={{ opacity: 0, scale: 0.5 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.5 }}
+                                transition={{ duration: 0.15 }}
+                                width="10" height="8" viewBox="0 0 10 8" fill="none"
+                              >
+                                <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                              </motion.svg>
+                            )}
+                          </AnimatePresence>
+                        </motion.div>
+                      </div>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed select-none">
+                        He leído y acepto los{' '}
+                        <button
+                          type="button"
+                          onClick={e => { e.preventDefault(); setTermsOpen(true) }}
+                          className="text-orange-500 dark:text-orange-400 font-semibold hover:underline focus:outline-none"
+                        >
+                          Términos de Uso
+                        </button>
+                        {' '}de Ferretería Online
+                      </span>
+                    </label>
+                    <AnimatePresence>
+                      {!termsAccepted && (
+                        <motion.p
+                          key="terms-hint"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="text-[11px] text-gray-400 dark:text-gray-500 mt-1.5 pl-8 overflow-hidden"
+                        >
+                          Debes aceptar los términos para crear tu cuenta
                         </motion.p>
                       )}
                     </AnimatePresence>
@@ -799,7 +870,7 @@ export default function RegisterPage() {
                     <button
                       type="button"
                       onClick={() => setStep(2)}
-                      className="flex items-center gap-2 px-4 py-4 rounded-xl border border-white/10 text-gray-400 hover:text-white hover:border-white/20 transition-all duration-200 text-sm font-medium"
+                      className="flex items-center gap-2 px-4 py-4 rounded-xl border border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-white/20 hover:bg-gray-50 dark:hover:bg-white/5 transition-all duration-200 text-sm font-medium"
                     >
                       <ArrowLeft size={16} />
                       Volver
@@ -807,9 +878,9 @@ export default function RegisterPage() {
 
                     <motion.button
                       type="submit"
-                      disabled={loading}
-                      whileTap={{ scale: 0.98 }}
-                      className="relative flex-1 overflow-hidden bg-orange-500 hover:bg-orange-400 disabled:opacity-60 text-white font-bold py-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25 group"
+                      disabled={loading || !termsAccepted}
+                      whileTap={termsAccepted ? { scale: 0.98 } : {}}
+                      className="relative flex-1 overflow-hidden bg-orange-500 hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25 group"
                     >
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                       {loading ? (
@@ -829,6 +900,20 @@ export default function RegisterPage() {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Separador y nota legal */}
+          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-white/10 text-center">
+            <p className="text-xs text-gray-400 dark:text-gray-500">
+              Al registrarte aceptas nuestros{' '}
+              <button
+                type="button"
+                onClick={() => setTermsOpen(true)}
+                className="text-orange-500 dark:text-orange-400 hover:underline focus:outline-none"
+              >
+                Términos de uso
+              </button>
+            </p>
+          </div>
         </motion.div>
       </div>
     </div>

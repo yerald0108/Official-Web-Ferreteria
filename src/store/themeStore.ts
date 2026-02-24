@@ -23,7 +23,8 @@ export const useThemeStore = create<ThemeStore>()(
     }),
     {
       name: 'ferreteria-theme',
-      onRehydrateStorage: () => (state) => {
+      // ← CAMBIADO: firma correcta para Zustand v5
+      onRehydrateStorage: (state) => {
         if (state) applyTheme(state.isDark)
       },
     }

@@ -24,6 +24,7 @@ import ContactPage from './pages/ContactPage'
 import AdminCategories from './pages/admin/AdminCategories'
 import NotFoundPage from './pages/NotFoundPage'
 import WishlistPage  from './pages/WishlistPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
 
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -48,10 +49,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login"        element={<LoginPage />} />
-        <Route path="/register"     element={<RegisterPage />} />
-        <Route path="/verify-email" element={<VerifyEmailPage />} />
-        <Route path="/auth/callback" element={<AuthCallbackPage />} />
+        <Route path="/login"            element={<LoginPage />} />
+        <Route path="/register"         element={<RegisterPage />} />
+        <Route path="/verify-email"     element={<VerifyEmailPage />} />
+        <Route path="/auth/callback"    element={<AuthCallbackPage />} />
+        <Route path="/forgot-password"  element={<ForgotPasswordPage />} />
 
         {/* Rutas cliente */}
         <Route element={<MainLayout />}>
@@ -67,25 +69,23 @@ export default function App() {
           <Route path="/favoritos"  element={<PrivateRoute><WishlistPage /></PrivateRoute>} />
           <Route path="/orders/:id" element={<PrivateRoute><OrderConfirmationPage /></PrivateRoute>} />
         </Route>
-        
 
         {/* Rutas admin */}
         <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
           <Route index           element={<AdminDashboard />} />
           <Route path="orders"   element={<AdminOrders />} />
           <Route path="products" element={<AdminProducts />} />
-          <Route path="users" element={<AdminUsers />} />
+          <Route path="users"    element={<AdminUsers />} />
           <Route path="categories" element={<AdminCategories />} />
-          
         </Route>
 
         {/* Rutas gestor */}
         <Route path="/gestor" element={<GestorRoute><GestorLayout /></GestorRoute>}>
-         <Route index         element={<Navigate to="/gestor/products" replace />} />
+          <Route index           element={<Navigate to="/gestor/products" replace />} />
           <Route path="products" element={<AdminProducts />} />
         </Route>
 
-        {/* 404 — debe ir al final, captura cualquier ruta no definida */}
+        {/* 404 */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
