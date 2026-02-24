@@ -121,6 +121,9 @@ export default function RegisterPage() {
   const strength = evaluateStrength(passwordVal)
   const passwordsMatch = passwordVal.length > 0 && passwordVal === confirmVal
 
+  // Verificar si el paso 3 es válido para habilitar el botón
+  const isStep3Valid = form3.formState.isValid && passwordVal && confirmVal
+
   const triggerParticles = useCallback(() => {
     const colors = ['#f97316', '#fb923c', '#fdba74', '#22c55e', '#86efac']
     const newParticles = Array.from({ length: 12 }, (_, i) => ({
@@ -868,6 +871,20 @@ export default function RegisterPage() {
                     </AnimatePresence>
                   </div>
 
+                  {/* Mensaje de ayuda cuando faltan campos de contraseña */}
+                  <AnimatePresence>
+                    {!isStep3Valid && termsAccepted && (
+                      <motion.p
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="text-xs text-orange-500 dark:text-orange-400 mt-2 text-center"
+                      >
+                        Completa todos los campos de contraseña correctamente
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
+
                   <div className="flex gap-3 mt-2">
                     <button
                       type="button"
@@ -880,8 +897,8 @@ export default function RegisterPage() {
 
                     <motion.button
                       type="submit"
-                      disabled={loading || !termsAccepted}
-                      whileTap={termsAccepted ? { scale: 0.98 } : {}}
+                      disabled={loading || !termsAccepted || !isStep3Valid}
+                      whileTap={isStep3Valid ? { scale: 0.98 } : {}}
                       className="relative flex-1 overflow-hidden bg-orange-500 hover:bg-orange-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25 group"
                     >
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
