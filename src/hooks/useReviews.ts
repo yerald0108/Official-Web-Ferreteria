@@ -8,6 +8,7 @@ export interface Review {
   rating: number
   comment: string | null
   created_at: string
+  is_visible: boolean
   profile?: { full_name: string }
 }
 
@@ -16,7 +17,7 @@ export interface ProductRating {
   count: number
 }
 
-// Hook para obtener reviews de un producto
+// Hook para obtener reviews de un producto (solo visibles en la tienda)
 export function useProductReviews(productId: string) {
   const [reviews, setReviews]   = useState<Review[]>([])
   const [loading, setLoading]   = useState(true)
@@ -28,6 +29,9 @@ export function useProductReviews(productId: string) {
       .from('reviews')
       .select('*, profile:profiles!reviews_user_id_fkey(full_name)')
       .eq('product_id', productId)
+      // Solo mostrar reseñas visibles en la tienda pública
+      // (is_visible IS NULL = reseña antigua antes de la migración, se trata como visible)
+      .or('is_visible.is.null,is_visible.eq.true')
       .order('created_at', { ascending: false })
 
     setReviews((data ?? []) as Review[])
@@ -37,13 +41,21 @@ export function useProductReviews(productId: string) {
   useEffect(() => { fetchReviews() }, [fetchReviews])
 
   // Detectar review del usuario actual
+  // La reseña propia del usuario siempre se muestra aunque esté oculta
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
-      const mine = reviews.find((r: Review) => r.user_id === user.id) ?? null
-      setUserReview(mine)
+      supabase
+        .from('reviews')
+        .select('*, profile:profiles!reviews_user_id_fkey(full_name)')
+        .eq('product_id', productId)
+        .eq('user_id', user.id)
+        .single()
+        .then(({ data }) => {
+          setUserReview(data as Review | null)
+        })
     })
-  }, [reviews])
+  }, [productId, reviews])
 
   const submitReview = async (rating: number, comment: string) => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -66,7 +78,7 @@ export function useProductReviews(productId: string) {
   return { reviews, loading, average, count: reviews.length, userReview, submitReview, refetch: fetchReviews }
 }
 
-// Hook liviano para obtener solo el promedio (usado en tarjetas del catálogo)
+// Hook liviano para obtener solo el promedio (solo reseñas visibles)
 export function useProductRating(productId: string): ProductRating {
   const [rating, setRating] = useState<ProductRating>({ average: 0, count: 0 })
 
@@ -75,6 +87,7 @@ export function useProductRating(productId: string): ProductRating {
       .from('reviews')
       .select('rating')
       .eq('product_id', productId)
+      .or('is_visible.is.null,is_visible.eq.true')
       .then(({ data }) => {
         if (!data || data.length === 0) return
         const avg = data.reduce((s: number, r: { rating: number }) => s + r.rating, 0) / data.length

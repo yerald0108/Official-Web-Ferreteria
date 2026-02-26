@@ -1,14 +1,15 @@
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Package, ShoppingBag, LogOut, Wrench, ChevronRight, Users, LayoutList } from 'lucide-react'
+import { LayoutDashboard, Package, ShoppingBag, LogOut, Wrench, ChevronRight, Users, LayoutList, Star } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { Toaster } from 'sileo'
 
 const links = [
-  { to: '/admin',          label: 'Dashboard',   icon: LayoutDashboard, end: true },
-  { to: '/admin/orders',   label: 'Pedidos',     icon: ShoppingBag,     end: false },
-  { to: '/admin/products', label: 'Productos',   icon: Package,         end: false },
-  { to: '/admin/categories', label: 'Categorías',  icon: LayoutList,    end: false },
-  { to: '/admin/users',    label: 'Usuarios',    icon: Users,           end: false },
+  { to: '/admin',           label: 'Dashboard',   icon: LayoutDashboard, end: true  },
+  { to: '/admin/orders',    label: 'Pedidos',      icon: ShoppingBag,     end: false },
+  { to: '/admin/products',  label: 'Productos',    icon: Package,         end: false },
+  { to: '/admin/categories',label: 'Categorías',   icon: LayoutList,      end: false },
+  { to: '/admin/reviews',   label: 'Reseñas',      icon: Star,            end: false },
+  { to: '/admin/users',     label: 'Usuarios',     icon: Users,           end: false },
 ]
 
 export default function AdminLayout() {

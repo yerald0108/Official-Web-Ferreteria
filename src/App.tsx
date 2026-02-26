@@ -22,6 +22,7 @@ import OrderConfirmationPage from './pages/OrderConfirmationPage'
 import AboutPage   from './pages/AboutPage'
 import ContactPage from './pages/ContactPage'
 import AdminCategories from './pages/admin/AdminCategories'
+import AdminReviews from './pages/admin/AdminReviews'
 import NotFoundPage from './pages/NotFoundPage'
 import WishlistPage  from './pages/WishlistPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
@@ -72,11 +73,12 @@ export default function App() {
 
         {/* Rutas admin */}
         <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
-          <Route index           element={<AdminDashboard />} />
-          <Route path="orders"   element={<AdminOrders />} />
-          <Route path="products" element={<AdminProducts />} />
-          <Route path="users"    element={<AdminUsers />} />
+          <Route index             element={<AdminDashboard />} />
+          <Route path="orders"     element={<AdminOrders />} />
+          <Route path="products"   element={<AdminProducts />} />
+          <Route path="users"      element={<AdminUsers />} />
           <Route path="categories" element={<AdminCategories />} />
+          <Route path="reviews"    element={<AdminReviews />} />
         </Route>
 
         {/* Rutas gestor */}

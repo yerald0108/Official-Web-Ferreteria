@@ -2,6 +2,26 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Order, Product, Category } from '../types'
 
+// ── Tipo para reseñas en el panel admin ──────────────────────────
+export interface AdminReview {
+  id: string
+  product_id: string | null
+  user_id: string
+  rating: number
+  comment: string | null
+  created_at: string
+  is_visible: boolean
+  product_name?: string | null
+  profile_name?: string | null
+}
+
+interface ReviewStats {
+  total: number
+  average: number
+  visible: number
+  hidden: number
+}
+
 // src/hooks/useAdmin.ts — solo useAdminOrders cambia
 export function useAdminOrders() {
   const [orders, setOrders]   = useState<Order[]>([])
@@ -115,4 +135,71 @@ export function useAdminCategories() {
   }
 
   return { categories, loading, createCategory, updateCategory, deleteCategory, refetch: fetchCategories }
+}
+
+// ── Hook para gestión de reseñas desde el panel admin ────────────
+export function useAdminReviews() {
+  const [reviews, setReviews] = useState<AdminReview[]>([])
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats]     = useState<ReviewStats>({ total: 0, average: 0, visible: 0, hidden: 0 })
+
+  const fetchReviews = async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('reviews')
+      .select(`
+        *,
+        product:products(name),
+        profile:profiles!reviews_user_id_fkey(full_name)
+      `)
+      .order('created_at', { ascending: false })
+
+    if (!error && data) {
+      const mapped: AdminReview[] = data.map((r: any) => ({
+        id:           r.id,
+        product_id:   r.product_id,
+        user_id:      r.user_id,
+        rating:       r.rating,
+        comment:      r.comment,
+        created_at:   r.created_at,
+        is_visible:   r.is_visible ?? true,
+        product_name: r.product?.name ?? null,
+        profile_name: r.profile?.full_name ?? null,
+      }))
+
+      setReviews(mapped)
+
+      const total   = mapped.length
+      const visible = mapped.filter(r => r.is_visible !== false).length
+      const hidden  = mapped.filter(r => r.is_visible === false).length
+      const average = total > 0
+        ? mapped.reduce((s, r) => s + r.rating, 0) / total
+        : 0
+
+      setStats({ total, average, visible, hidden })
+    }
+
+    setLoading(false)
+  }
+
+  useEffect(() => { fetchReviews() }, [])
+
+  // ── Eliminar una reseña ──────────────────────────────────────
+  const deleteReview = async (id: string) => {
+    const { error } = await supabase.from('reviews').delete().eq('id', id)
+    if (!error) fetchReviews()
+    return error
+  }
+
+  // ── Cambiar visibilidad de una reseña ────────────────────────
+  const toggleVisibility = async (id: string, currentlyVisible: boolean) => {
+    const { error } = await supabase
+      .from('reviews')
+      .update({ is_visible: !currentlyVisible })
+      .eq('id', id)
+    if (!error) fetchReviews()
+    return error
+  }
+
+  return { reviews, loading, stats, deleteReview, toggleVisibility, refetch: fetchReviews }
 }

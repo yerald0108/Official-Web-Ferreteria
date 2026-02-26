@@ -1,4 +1,4 @@
-// src/pages/CartPage.tsx — con modal de confirmación para vaciar carrito
+// src/pages/CartPage.tsx
 import { useState } from 'react'
 import { Trash2, Plus, Minus, ShoppingCart, ArrowLeft } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
