@@ -296,6 +296,7 @@ export default function AdminProducts() {
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => openEdit(product)}
+                        aria-label={`Editar ${product.name}`}
                         className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-500 transition-colors"
                         title="Editar"
                       >
@@ -303,6 +304,7 @@ export default function AdminProducts() {
                       </button>
                       <button
                         onClick={() => handleToggle(product)}
+                        aria-label={`${product.is_active ? 'Desactivar' : 'Activar'} ${product.name}`}
                         className="p-1.5 rounded-lg hover:bg-yellow-50 text-gray-400 hover:text-yellow-500 transition-colors"
                         title={product.is_active ? 'Desactivar' : 'Activar'}
                       >
@@ -310,6 +312,7 @@ export default function AdminProducts() {
                       </button>
                       <button
                         onClick={() => setDeleteTarget(product)}
+                        aria-label={`Eliminar ${product.name}`}
                         className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
                         title="Eliminar"
                       >

@@ -84,6 +84,7 @@ export default function Navbar() {
         <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
           <Link to="/" className="hover:text-orange-500 transition-colors">Inicio</Link>
           <Link to="/catalog" className="hover:text-orange-500 transition-colors">Catálogo</Link>
+          <Link to="/nosotros" className="hover:text-orange-500 transition-colors">Sobre Nosotros</Link>
         </nav>
 
         {/* Acciones */}
@@ -91,7 +92,7 @@ export default function Navbar() {
           {user ? (
             <>
               {/* Carrito */}
-              <Link to="/cart" className="relative p-2 rounded-lg hover:bg-orange-50 transition-colors">
+              <Link to="/cart" aria-label={`Ir al carrito${totalItems > 0 ? `, ${totalItems} productos` : ''}`} className="relative p-2 rounded-lg hover:bg-orange-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2">
                 <ShoppingCart size={22} className="text-gray-700" />
                 {totalItems > 0 && (
                   <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
@@ -104,7 +105,10 @@ export default function Navbar() {
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setOpen(v => !v)}
-                  className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl hover:bg-gray-50 transition-colors"
+                  aria-label="Menú de usuario"
+                  aria-expanded={open}
+                  aria-haspopup="true"
+                  className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl hover:bg-gray-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
                 >
                   {/* Avatar */}
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm ${avatarColor}`}>
@@ -193,7 +197,8 @@ export default function Navbar() {
                       <div className="p-1.5 border-t border-gray-50">
                         <button
                           onClick={handleSignOut}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 transition-colors group"
+                          aria-label="Cerrar sesión"
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
                         >
                           <LogOut size={16} className="group-hover:scale-110 transition-transform" />
                           Cerrar sesión

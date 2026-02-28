@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../hooks/useAuth'
 import { useCategories, useProducts } from '../hooks/useProducts'
 import ProductCard from '../components/products/ProductCard'
+import PageSEO from '../components/seo/PageSEO'
 
 // ── Animación fade-up reutilizable ────────────────────────────────
 function FadeUp({ children, delay = 0, className = '' }: {
@@ -82,6 +83,14 @@ export default function HomePage() {
   const featuredSlice             = featured.slice(0, 4)
 
   return (
+
+    <>
+    <PageSEO
+      title="Ferretería Online"
+      description="Tu ferretería de confianza en Cuba."
+      url="/"
+    />
+
     <div className="space-y-20 pb-10">
 
       {/* ── HERO ─────────────────────────────────────────────────── */}
@@ -425,7 +434,7 @@ export default function HomePage() {
           </div>
         </FadeUp>
       )}
-
-    </div>
+      </div>
+    </>
   )
 }

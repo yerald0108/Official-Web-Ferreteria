@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
 import { Wrench, Phone, Mail, MapPin, Facebook, Instagram, Twitter } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import TermsModal from '../../pages/TermsModal'
+import { useState } from 'react'
 
 interface SocialLink {
   Icon: LucideIcon
@@ -47,8 +49,14 @@ export default function Footer() {
     { Icon: MapPin, text: 'Cuba - Envios nacionales' },
   ]
 
+  const [termsOpen, setTermsOpen]       = useState(false)
+
   return (
+    
     <footer className="bg-gray-900 dark:bg-black text-gray-400 mt-16 transition-colors duration-300">
+
+      <TermsModal open={termsOpen} onClose={() => setTermsOpen(false)} />
+
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
 
@@ -146,7 +154,12 @@ export default function Footer() {
           </p>
           <div className="flex items-center gap-4">
             <span className="hover:text-orange-400 cursor-pointer transition-colors">
-              Terminos y condiciones
+              <button
+                type="button"
+                onClick={() => setTermsOpen(true)}
+              >
+                Términos de uso
+              </button>
             </span>
             <span className="hover:text-orange-400 cursor-pointer transition-colors">
               Politica de privacidad

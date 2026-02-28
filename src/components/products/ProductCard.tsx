@@ -71,10 +71,10 @@ export default function ProductCard({ product }: Props) {
           <StarRating value={average} size={13} />
           {count > 0 ? (
             <span className="text-xs text-gray-400">
-              {average.toFixed(1)} <span className="text-gray-300">({count})</span>
+              {average.toFixed(1)} <span className="text-gray-500">({count})</span>
             </span>
           ) : (
-            <span className="text-xs text-gray-300">Sin valoraciones</span>
+            <span className="text-xs text-gray-400">Sin valoraciones</span>
           )}
         </div>
 

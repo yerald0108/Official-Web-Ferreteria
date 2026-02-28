@@ -165,6 +165,32 @@ export default function ProductPage() {
   const lowStock   = product.stock > 0 && product.stock <= 5
   const maxQty     = Math.min(product.stock, 99)
 
+  const handleDecrease = () => {
+    if (quantity <= 1) return
+    const next = quantity - 1
+    setQuantity(next)
+    sileo.info({
+      title: `Cantidad actualizada: ${next}`,
+      description: `Subtotal: $${(product.price * next).toFixed(2)}`,
+    })
+  }
+
+  const handleIncrease = () => {
+    if (quantity >= maxQty) {
+      sileo.warning({
+        title: 'Stock máximo alcanzado',
+        description: `Solo hay ${product.stock} unidades disponibles`,
+      })
+      return
+    }
+    const next = quantity + 1
+    setQuantity(next)
+    sileo.info({
+      title: `Cantidad actualizada: ${next}`,
+      description: `Subtotal: $${(product.price * next).toFixed(2)}`,
+    })
+  }
+
   return (
     <div className="max-w-5xl mx-auto space-y-12">
 
@@ -198,8 +224,6 @@ export default function ProductPage() {
           transition={{ duration: 0.4 }}
           className="relative"
         >
-          {/* Contenedor con aspect-square y overflow hidden para que
-              ProductImage ocupe todo el espacio disponible */}
           <div className="relative aspect-square bg-gray-50 dark:bg-gray-900 rounded-3xl overflow-hidden border border-gray-100 dark:border-gray-800">
             <ProductImage
               src={product.image_url}
@@ -307,7 +331,7 @@ export default function ProductPage() {
               <div className="flex items-center gap-4">
                 <div className="flex items-center bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
                   <button
-                    onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                    onClick={handleDecrease}
                     disabled={quantity <= 1}
                     className="w-11 h-11 flex items-center justify-center text-gray-500 hover:text-orange-500 disabled:opacity-30 transition-colors"
                   >
@@ -317,7 +341,7 @@ export default function ProductPage() {
                     {quantity}
                   </span>
                   <button
-                    onClick={() => setQuantity(q => Math.min(maxQty, q + 1))}
+                    onClick={handleIncrease}
                     disabled={quantity >= maxQty}
                     className="w-11 h-11 flex items-center justify-center text-gray-500 hover:text-orange-500 disabled:opacity-30 transition-colors"
                   >
