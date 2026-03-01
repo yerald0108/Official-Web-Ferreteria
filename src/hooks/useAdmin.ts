@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Order, Product, Category } from '../types'
 
@@ -22,12 +22,12 @@ interface ReviewStats {
   hidden: number
 }
 
-// src/hooks/useAdmin.ts — solo useAdminOrders cambia
+// ── useAdminOrders ───────────────────────────────────────────────
 export function useAdminOrders() {
   const [orders, setOrders]   = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     setLoading(true)
     const { data, error } = await supabase
       .from('orders')
@@ -51,9 +51,9 @@ export function useAdminOrders() {
       setOrders(data ?? [])
     }
     setLoading(false)
-  }
+  }, [])
 
-  useEffect(() => { fetchOrders() }, [])
+  useEffect(() => { fetchOrders() }, [fetchOrders])
 
   const updateStatus = async (orderId: string, status: string) => {
     const { error } = await supabase
@@ -184,14 +184,12 @@ export function useAdminReviews() {
 
   useEffect(() => { fetchReviews() }, [])
 
-  // ── Eliminar una reseña ──────────────────────────────────────
   const deleteReview = async (id: string) => {
     const { error } = await supabase.from('reviews').delete().eq('id', id)
     if (!error) fetchReviews()
     return error
   }
 
-  // ── Cambiar visibilidad de una reseña ────────────────────────
   const toggleVisibility = async (id: string, currentlyVisible: boolean) => {
     const { error } = await supabase
       .from('reviews')

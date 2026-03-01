@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { sileo } from 'sileo'
 import { useAdminOrders } from '../../hooks/useAdmin'
+import { supabase } from '../../lib/supabase'
 import type { Order } from '../../types'
 import {
   User, MapPin, Phone, Clock, Package,
@@ -11,6 +12,7 @@ import {
   ShoppingBag, TrendingUp, Eye, Loader2,
 } from 'lucide-react'
 import OrderStatusTimeline from '../../components/orders/OrderStatusTimeline'
+import CancelOrderModal from '../../components/admin/CancelOrderModal'
 
 // ── Configuración de estados ──────────────────────────────────────
 const STATUSES = [
@@ -157,15 +159,6 @@ function OrderCard({ order, isSelected, onClick }: {
             <p className="text-xs text-gray-400 truncate">{order.profile.email}</p>
           )}
         </div>
-        {order.profile?.phone && (
-          <p className="text-xs text-gray-400 flex-shrink-0 flex items-center gap-1">
-          </p>
-        )}
-        {order.profile?.email && (
-          <div className="flex items-center gap-1.5 mt-1">
-            <span className="text-xs text-gray-400">✉️</span>
-          </div>
-        )}
       </div>
 
       {/* Fila 3: Dirección + Productos */}
@@ -392,10 +385,7 @@ function OrderDetail({ order, onStatusChange, loadingStatus }: {
         </div>
       </div>
 
-      {/* ── HISTORIAL REAL DE ESTADOS ──────────────────────────
-           CAMBIO: sustituye el bloque TIMELINE estático por el
-           componente OrderStatusTimeline con fechas reales de BD
-      ── */}
+      {/* ── HISTORIAL DE ESTADOS ── */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
@@ -520,15 +510,101 @@ function OrderSkeleton() {
 
 // ── Página principal ──────────────────────────────────────────────
 export default function AdminOrders() {
-  const { orders, loading, updateStatus } = useAdminOrders()
-  const [selected,      setSelected]      = useState<Order | null>(null)
-  const [loadingStatus, setLoadingStatus] = useState<string | null>(null)
-  const [filter,        setFilter]        = useState('all')
-  const [search,        setSearch]        = useState('')
+  const { orders, loading, updateStatus, refetch } = useAdminOrders()
+  const [selected,         setSelected]         = useState<Order | null>(null)
+  const [loadingStatus,    setLoadingStatus]     = useState<string | null>(null)
+  const [filter,           setFilter]            = useState('all')
+  const [search,           setSearch]            = useState('')
+  const [cancelModalOrder, setCancelModalOrder]  = useState<Order | null>(null)
+
+  // ── Enviar email de notificación ──────────────────────────────
+  const sendStatusEmail = async (orderId: string, status: string, cancelReason?: string) => {
+    try {
+      const order = orders.find(o => o.id === orderId)
+      if (!order) return
+
+      // El email y nombre ya vienen en el join de profiles — no necesitamos llamadas extra
+      const customerEmail = order.profile?.email
+      const customerName  = order.profile?.full_name ?? 'Cliente'
+
+      if (!customerEmail) {
+        console.warn('No se encontró email para el pedido', orderId)
+        return
+      }
+
+      await supabase.functions.invoke('send-order-email', {
+        body: {
+          customerEmail,
+          customerName,
+          orderId: order.id,
+          status,
+          total: order.total,
+          cancelReason,
+          items: order.order_items ?? [],
+        },
+      })
+    } catch (err) {
+      console.error('Error enviando email:', err)
+      // No bloqueamos la UI si falla el email
+    }
+  }
+
+  // ── Confirmar cancelación desde el modal ──────────────────────
+  const handleCancelConfirm = async (reason: string) => {
+    if (!cancelModalOrder) return
+
+    const orderId = cancelModalOrder.id
+    setCancelModalOrder(null)
+    setLoadingStatus('cancelled')
+
+    const { error } = await supabase
+      .from('orders')
+      .update({ status: 'cancelled', cancel_reason: reason })
+      .eq('id', orderId)
+
+    setLoadingStatus(null)
+
+    if (error) {
+      sileo.error({ title: 'Error al cancelar', description: error.message })
+      return
+    }
+
+    sileo.success({ title: '❌ Pedido cancelado', description: 'El cliente será notificado por email' })
+
+    if (selected?.id === orderId) {
+      setSelected((prev: Order | null) => prev ? { ...prev, status: 'cancelled', cancel_reason: reason } : null)
+    }
+
+    await sendStatusEmail(orderId, 'cancelled', reason)
+    refetch()
+  }
+
+  // ── Cambiar estado (no cancelación) ──────────────────────────
+  const handleStatusChange = async (orderId: string, newStatus: string) => {
+    if (newStatus === 'cancelled') {
+      const order = orders.find((o: Order) => o.id === orderId) ?? selected
+      setCancelModalOrder(order ?? null)
+      return
+    }
+
+    setLoadingStatus(newStatus)
+    const error = await updateStatus(orderId, newStatus)
+    setLoadingStatus(null)
+
+    if (error) {
+      sileo.error({ title: 'Error al actualizar', description: error.message })
+    } else {
+      sileo.success({ title: 'Estado actualizado correctamente' })
+      if (selected?.id === orderId) {
+        setSelected((prev: Order | null) => prev ? { ...prev, status: newStatus as Order['status'] } : null)
+      }
+      await sendStatusEmail(orderId, newStatus)
+    }
+  }
 
   const filtered = orders
-    .filter(o => filter === 'all' || o.status === filter)
-    .filter(o => {
+    .filter((o: Order) => filter === 'all' || o.status === filter)
+    .filter((o: Order) => {
       if (!search.trim()) return true
       const q = search.toLowerCase()
       return (
@@ -539,28 +615,23 @@ export default function AdminOrders() {
       )
     })
 
-  const handleStatusChange = async (orderId: string, newStatus: string) => {
-    setLoadingStatus(newStatus)
-    const error = await updateStatus(orderId, newStatus)
-    setLoadingStatus(null)
-    if (error) {
-      sileo.error({ title: 'Error al actualizar', description: error.message })
-    } else {
-      sileo.success({ title: 'Estado actualizado correctamente' })
-      if (selected?.id === orderId) {
-        setSelected(prev => prev ? { ...prev, status: newStatus as Order['status'] } : null)
-      }
-    }
-  }
-
   const stats = {
-    pending:   orders.filter(o => o.status === 'pending').length,
-    active:    orders.filter(o => ['confirmed', 'on_the_way'].includes(o.status)).length,
-    delivered: orders.filter(o => o.status === 'delivered').length,
+    pending:   orders.filter((o: Order) => o.status === 'pending').length,
+    active:    orders.filter((o: Order) => ['confirmed', 'on_the_way'].includes(o.status)).length,
+    delivered: orders.filter((o: Order) => o.status === 'delivered').length,
   }
 
   return (
     <div className="flex flex-col h-full space-y-5">
+
+      {/* ── MODAL DE CANCELACIÓN ── */}
+      <CancelOrderModal
+        open={cancelModalOrder !== null}
+        orderShortId={cancelModalOrder?.id.slice(0, 8).toUpperCase() ?? ''}
+        customerName={cancelModalOrder?.profile?.full_name ?? 'el cliente'}
+        onConfirm={handleCancelConfirm}
+        onCancel={() => setCancelModalOrder(null)}
+      />
 
       {/* ── HEADER ── */}
       <div className="flex items-end justify-between">
@@ -608,7 +679,7 @@ export default function AdminOrders() {
           </span>
         </button>
         {STATUSES.map(s => {
-          const count  = orders.filter(o => o.status === s.value).length
+          const count  = orders.filter((o: Order) => o.status === s.value).length
           const StIcon = s.icon
           return (
             <button
@@ -632,7 +703,7 @@ export default function AdminOrders() {
       {/* ── LAYOUT ── */}
       <div className="flex gap-4 flex-1 min-h-0">
 
-        {/* Lista — scroll propio */}
+        {/* Lista */}
         <div className={`flex flex-col gap-2.5 overflow-y-auto transition-all duration-300 flex-shrink-0 ${
           selected ? 'w-[400px]' : 'w-full'
         }`}>
@@ -649,7 +720,7 @@ export default function AdminOrders() {
               </p>
             </div>
           ) : (
-            filtered.map(order => (
+            filtered.map((order: Order) => (
               <OrderCard
                 key={order.id}
                 order={order}
@@ -660,7 +731,7 @@ export default function AdminOrders() {
           )}
         </div>
 
-        {/* Panel de detalle — scroll SOLO aquí, todo lo demás queda fijo */}
+        {/* Panel de detalle */}
         <AnimatePresence mode="wait">
           {selected && (
             <motion.div

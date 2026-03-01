@@ -47,6 +47,7 @@ export interface Order {
   created_at: string
   updated_at: string
   order_items?: OrderItem[]
+  cancel_reason?: string | null
   profile?: {
     full_name: string
     phone: string

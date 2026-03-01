@@ -150,7 +150,28 @@ export default function CheckoutPage() {
       return
     }
 
+    // ── Limpiar carrito ────────────────────────────────────────
     clearCart()
+
+    // ── Enviar email de confirmación al cliente ────────────────
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        await supabase.functions.invoke('send-order-email', {
+          body: {
+            customerEmail: user.email,
+            customerName:  profile.full_name ?? 'Cliente',
+            orderId:       data.order_id as string,
+            status:        'pending',
+            total,
+            items:         orderItems,
+          },
+        })
+      }
+    } catch {
+      // El email falla silenciosamente — no bloqueamos la navegación
+    }
+
     navigate(`/orders/${data.order_id as string}`)
   }
 
